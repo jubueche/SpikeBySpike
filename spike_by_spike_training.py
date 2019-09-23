@@ -9,47 +9,20 @@ utils = Utils()
 
 #### Script to generate findings in paper "Learning to represent signals spike by spike" [https://arxiv.org/pdf/1703.03777.pdf]
 seed(42)
+np.set_printoptions(precision=6, suppress=True) # For the rate vector
 
-
-# Get multiple inputs
-#utils.set_n_in(2)
-# TODO Set eta correctly
-#x = utils.get_mixed_input(low=25, high=50)
-
-
-x = utils.get_input()
-means = np.asarray(np.mean(x, axis=1))
-meansMatrix = means
-for k in range(1,x.shape[1]):
-    meansMatrix = vstack([meansMatrix, means])
-
-meansMatrix = meansMatrix.T
-x = x - meansMatrix
-print(means)
-
-x[0,:] = x[0,:] - min(x[0,:])
-x[1,:] = x[1,:] - min(x[1,:])
-
-
-import matplotlib.pyplot as plt
+x = utils.get_matlab_like_input()
 plt.plot(x.T)
 plt.show()
 
+eps_v = np.random.normal(loc=0.0, scale=utils.sigma_eps_v, size=(utils.N, utils.time_steps)) # Voltage noise
+eps_t = np.random.normal(loc=0.0, scale=utils.sigma_eps_t, size=(utils.N, utils.time_steps)) # Threshold 'noise'
 
-# Voltage noise
-eps_v = np.random.normal(loc=0.0, scale=utils.sigma_eps_v, size=(utils.N, utils.time_steps))
-
-# Threshold 'noise'
-eps_t = np.random.normal(loc=0.0, scale=utils.sigma_eps_t, size=(utils.N, utils.time_steps))
-
-# Initialize F and Omega
-F = np.random.normal(loc=5.0, scale=1.0, size=(utils.n_in, utils.N))
-Omega = np.eye(utils.N,utils.N)*utils.omega
-
-# Normalize rows
-for (idx,row) in enumerate(F):
+F = np.random.normal(loc=0.0, scale=1.0, size=(utils.n_in, utils.N)) # Initialize F and Omega
+for (idx,row) in enumerate(F): # Normalize F
     tmp = utils.gamma* (row / np.sqrt(np.sum(row**2)))
     F[idx,:] = tmp
+Omega = np.eye(utils.N,utils.N)*utils.omega # Initialize Omega
 
 ########## Input neuron group ##########
 
@@ -72,10 +45,7 @@ def update_I(t):
 
 sm_I = StateMonitor(I, variables=True, record=True, dt=utils.delta_t*ms)
 
-
 eqs_g = '''
-frob_Omega : 1
-frob_F : 1
 v_recon : 1
 vt : 1
 vt_1 : 1
@@ -96,16 +66,13 @@ conn_F.connect()
 conn_Omega.connect()
 
 # Initialize
-conn_F.weight = F.reshape((-1,)) # NOTE F has shape (utils.n_in,N), => F_{i,j} connects i-th in-neuron to j-th output
-conn_Omega.weight = Omega.reshape((-1,)) # NOTE Omega has shape (N,N) so no information is gained here.  We are using the paper version.
+conn_F.weight = F.ravel() # NOTE F has shape (utils.n_in,N), => F_{i,j} connects i-th in-neuron to j-th output
+conn_Omega.weight = Omega.ravel() # NOTE Omega has shape (N,N) so no information is gained here.  We are using the paper version.
 
 
 @network_operation(dt=utils.delta_t*ms)
 def update_G(t):
     current_t = int((t/ms)/utils.delta_t) # in [0,duration)
-
-    #if(current_t == 0):
-        #print(str(np.reshape(conn_F.weight, (utils.n_in, utils.N))))
 
     F_ = np.copy(np.reshape(conn_F.weight, (utils.n_in, utils.N)))
     Omega_ = np.copy(np.reshape(conn_Omega.weight, (utils.N, utils.N)))
@@ -124,7 +91,7 @@ def update_G(t):
     voltage_reconstructed = np.matmul(F_.T, x_t) + np.matmul(Omega_,r_tmp)
 
     if(current_t == 0):
-        vt = np.reshape(np.asarray(np.random.randn(utils.N)), (-1,1))
+        vt = 0.166*np.reshape(np.asarray(np.random.randn(utils.N)), (-1,1))
     else:
         vt = ((1-utils.lambbda*utils.dtt)*vt_1 + np.matmul(F_.T, ct_1) + np.matmul(Omega_, ot_1) + np.reshape(eps_v[:, current_t], (-1,1)))
 
@@ -168,22 +135,8 @@ def update_G(t):
             conn_Omega.weight = np.copy(np.reshape(Omega_, (-1,)))
 
 
-    # Supervise updates of weight matrices
-    tmp_frob_F = np.linalg.norm(F_, 'fro')
-    tmp_frob_Omega = np.linalg.norm(Omega_, 'fro')
-
-    delta_F = np.abs(tmp_frob_F - G.frob_F_[0])
-    delta_Omega = np.abs(tmp_frob_Omega - G.frob_Omega_[0]) 
-
-    # Compute the frobenius norm of F and Omega
-    G.frob_F_ = np.linalg.norm(F_, 'fro')
-    G.frob_Omega_ = np.linalg.norm(Omega_, 'fro')
-
-    if(current_t % 100 == 0):
-        s = ("DF: %.6f    DOmega: %.6f" % (delta_F, delta_Omega))
-        #print(s)
-
     rt = (1-utils.lambbda*utils.dtt)*rt_1 + ot_1
+    #print(rt)
 
     # Assign all the local copies to G
     G.vt_ = np.copy(np.reshape(vt, (-1,)))
@@ -191,7 +144,6 @@ def update_G(t):
 
     G.ot_ = np.copy(np.reshape(ot, (-1,)))
     G.ot_1_ = np.copy(G.ot_)
-
 
     G.rt_ = np.copy(np.reshape(rt, (-1,)))
     G.rt_1_ = np.copy(G.rt_) 
@@ -211,7 +163,8 @@ net.store('Init')
 x_hat_first = np.ones(shape=(utils.time_steps, utils.n_in))
 
 ########## Training ##########
-
+errors = []
+num_spikes = []
 for i in range(0,utils.num_iter):
 
     if(i == 0 or i == utils.num_iter-1):
@@ -219,15 +172,20 @@ for i in range(0,utils.num_iter):
     else:
         utils.use_learning = True
 
+    Omega_before = np.copy(np.reshape(conn_Omega.weight, (utils.N,utils.N)))
+    F_before = np.copy(np.reshape(conn_F.weight, (utils.n_in, utils.N)))
+    
     net.run(duration=utils.duration*ms)
 
+    Omega_after = np.copy(np.reshape(conn_Omega.weight, (utils.N,utils.N)))
+    F_after = np.copy(np.reshape(conn_F.weight, (utils.n_in, utils.N)))
+
+    delta_F = np.linalg.norm(F_before.ravel()-F_after.ravel(), 2)
+    delta_Omega = np.linalg.norm(Omega_before.ravel()-Omega_after.ravel(), 2)
 
     # The spike trains
     ot = sm_G.ot
     indices, times = np.where(ot == 1)
-
-    frob_F = np.reshape(sm_G.frob_F[0,:], (-1,))
-    frob_Omega = np.reshape(sm_G.frob_Omega[0,:], (-1,))
 
     # Reconstructed voltages
     v_recon = sm_G.v_recon
@@ -235,107 +193,40 @@ for i in range(0,utils.num_iter):
 
     # Error
     (errs, _, x_hat, D) = utils.get_error(sm_G.rt_, sm_I.xt_)
+    errors.append(errs)
     s = ""
     for j in range(len(errs)):
         s = s + ("Err%d is " % j) + ("%.6f" % errs[j]) + "    "
-    s = s + ("Frob_F: %.3f    Frob_Omega: %.3f" % (frob_F[-1], frob_Omega[-1]))
+    
+    s = s + ("    #Spikes: %d" % np.sum(ot.ravel()))
+    s = s + ("    Delta F: %.6f    Delta Omega: %.6f" % (delta_F, delta_Omega))
+    utils.eps_omega = utils.eps_omega / 2
+    utils.eps_f = utils.eps_f / 2
     print(s)
-
+    num_spikes.append(np.sum(ot.ravel()))
 
     # Collect x_hat from the first run w/o training
     if(i==0):
         x_hat_first = x_hat
         indices_first, times_first = np.where(ot == 1)
 
-
     # Reset running averages for the decoder
     utils.reset_averages()
-
-    # The trained weights, important: Need to copy because otherwise it will reference conn_X.weight, which changes when restore is called.
-    Omega_after = np.copy(np.reshape(conn_Omega.weight, (utils.N,utils.N)))
-    F_after = np.copy(np.reshape(conn_F.weight, (utils.n_in, utils.N)))
 
     net.restore(name='Init')
     conn_F.weight = np.reshape(F_after, (-1,))
     conn_Omega.weight = np.reshape(Omega_after, (-1,))
 
-
-Omega_after_training = np.copy(np.reshape(conn_Omega.weight, (utils.N,utils.N)))
-F_after_training = np.copy(np.reshape(conn_F.weight, (utils.n_in, utils.N)))
-
 x = x.T
-errors = utils.reconstruction_error_over_time_list(x, x_hat, dt=50)
-errors_first = utils.reconstruction_error_over_time_list(x, x_hat_first, dt=50)
+errors = np.asarray(errors)
 
-
-import matplotlib.pyplot as plt
-colors = ['r','g','b','m','y']
 n = 5
 for i in range(0,n):
         #plt.plot(v_recon[i,:], colors[i], label="Reconstructed voltage")
-        plt.plot(v_true[i,:], colors[i], label="True voltage")
+        plt.plot(v_true[i,:], utils.colors[i], label="True voltage")
 plt.legend()
 plt.show()
 
 
 ### Plotting ###
-penable = True
-if(penable):
-        app = QtGui.QApplication.instance()
-        if app is None:
-                app = QtGui.QApplication(sys.argv)
-        else:
-                print('QApplication instance already exists: %s' % str(app))
-
-        pg.setConfigOptions(antialias=True)
-        labelStyle = {'color': '#FFF', 'font-size': '12pt'}
-        win = pg.GraphicsWindow()
-        win.resize(1500, 1500)
-        win.setWindowTitle('Learning to represent signals spike-by-spike')
-
-        ps_first = []
-        for i in range(utils.n_in):
-                title = ("Initial Reconstruction of x%d" % i)
-                ps_first.append(win.addPlot(title=title))
-                win.nextRow()
-
-        p1 = win.addPlot(title="Initial Spikes")
-        win.nextRow()
-
-        # Uncomment for different plot for each dimension of x
-        ps = []
-        for i in range(utils.n_in):
-                title = ("Reconstruction of x%d" % i)
-                ps.append(win.addPlot(title=title))
-                win.nextRow()
-
-        #p2 = win.addPlot(title="Reconstruction of x vs x")
-        #win.nextRow()
-
-        p3 = win.addPlot(title="Spikes")
-        win.nextRow()
-        p4 = win.addPlot(title="Reconstruction error over time")
-        win.nextRow()
-
-        # Uncomment for different plot for each dimension of x
-        for i in range(utils.n_in):
-                ps[i].plot(y=x[:,i], pen=pg.mkPen('r', width=1, style=pg.QtCore.Qt.DashLine))
-                ps[i].plot(y=x_hat[:,i], pen=pg.mkPen('g', width=1, style=pg.QtCore.Qt.DashLine))
-
-
-        for i in range(utils.n_in):
-            ps_first[i].plot(y=x[:,i], pen=pg.mkPen('r', width=1, style=pg.QtCore.Qt.DashLine))
-            ps_first[i].plot(y=x_hat_first[:,i], pen=pg.mkPen('g', width=1, style=pg.QtCore.Qt.DashLine))
-
-        p3.plot(x=times, y=indices,
-                        pen=None, symbol='o', symbolPen=None,
-                        symbolSize=3, symbolBrush=(68, 245, 255))
-
-        p1.plot(x=times_first, y=indices_first,
-                pen=None, symbol='o', symbolPen=None,
-                symbolSize=3, symbolBrush=(68, 245, 255))
-        
-        for idx,e in enumerate(errors):
-                p4.plot(y=e, pen=pg.mkPen(colors[idx], width=1, style=pg.QtCore.Qt.DashLine))
-
-        app.exec()
+utils.plot_results(x_hat_first, times_first, indices_first, x, x_hat, times, indices, errors, num_spikes)

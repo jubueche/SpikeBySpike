@@ -1,18 +1,22 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from moving_average import EMA, MovingAverage
+from pyqtgraph.Qt import QtGui
+import pyqtgraph as pg
 
 
 class Utils:
 
     def __init__(self):
+        self.colors = ['m','b','y','r','g']
+        self.penable = True # Enable plotting
         self.use_learning = True
-        self.num_iter = 20 # TODO How many iterations for training?
+        self.num_iter = 2 # TODO How many iterations for training?
         self.N = 20
         self.n_in = 2
         self.thresh = 0.5
 
-        self.duration = 1000 #ms # TODO How long should be one run through the signal? Matlab code: 5000 (ms?)
+        self.duration = 8000 #ms # TODO How long should be one run through the signal? Matlab code: 5000 (ms?)
         self.delta_t = 1 # ms
         # TODO correct (2 lines below)?
         self.dtt = 10**-3
@@ -20,19 +24,19 @@ class Utils:
 
         self.lambbda_f = self.lambbda #Only for first experiment
         self.time_steps = int(self.duration/self.delta_t)
-        self.sigma_x = 2*10**1 # TODO See table 1 in [https://arxiv.org/src/1703.03777v2/anc/SI.pdf]. In the SI it is 2*10^3
-        self.sigma_eps_v = 10**-3
+        self.sigma_x = 1 # TODO See table 1 in [https://arxiv.org/src/1703.03777v2/anc/SI.pdf]. In the SI it is 2*10^3
+        self.sigma_eps_v = 10**-2 # 10**-3
         self.sigma_eps_t = 2*10**-2
-        self.eps_f = 10**-4
-        self.eps_omega = 10**-3
+        self.eps_f = 10**-3 #-4 and -3
+        self.eps_omega = 10**-2
         self.alpha = 0.21
         self.beta = 1.25
-        self.mu = 0.02
+        self.mu = 0.02#0.02 #l2 cost. High l2 cost -> Denser spike trains.
 
-        self.gamma = 2.5#0-8
+        self.gamma = 40.5#0.8 #Initital FF weight. High -> High initial firing -> High number of updates
         self.omega = -0.5
 
-        self.eta  = 100 # TODO In the paper it says time constant 6ms. Does that correspond to sigma(std)=6 ?, 600
+        self.eta  = 1000 # TODO In the paper it says time constant 6ms. Does that correspond to sigma(std)=6 ?, 600
         self.mA_xrT = MovingAverage(shape=(self.n_in,self.N))
         self.mA_rrT = MovingAverage(shape=(self.N,self.N))
         self.mA_r = MovingAverage(shape=(self.N,1))
@@ -58,6 +62,25 @@ class Utils:
             x = np.vstack([x, gaussian_filter(xx[i,:], sigma=self.eta)])
         
         return x
+
+    def get_matlab_like_input(self):
+        T = self.duration
+        dim = self.n_in
+        seed = np.random.randn(dim, T)*self.sigma_x
+        L = round(6*self.eta)
+        cNS = np.hstack([np.zeros((dim,1)), seed])
+
+        ker = np.exp( -((np.linspace(1,L,L) - L/2))**2/self.eta**2)
+        ker = ker/sum(ker)
+
+        x = np.zeros((dim, max([cNS.shape[1]+len(ker)-1,len(ker),cNS.shape[1] ])))
+
+        for i in range(0,dim):
+            x[i,:] = np.convolve(cNS[i,:], ker)*np.sqrt(self.eta/0.4)
+
+        x = x[:, 0:T]
+        return x
+
 
     def get_mixed_input(self, low, high):
         xx = np.random.normal(loc=0.0, scale=self.sigma_x**2, size=(self.n_in, self.time_steps))
@@ -133,3 +156,67 @@ class Utils:
                 err_tmp.append(np.linalg.norm(tmp_x0-tmp_x_hat0, 2))
             errors.append(err_tmp)
         return errors
+
+
+    def plot_results(self, x_hat_first, times_first, indices_first, x, x_hat, times, indices, errors, num_spikes):
+        if(self.penable):
+                app = QtGui.QApplication.instance()
+                if app is None:
+                        app = QtGui.QApplication(sys.argv)
+                else:
+                        print('QApplication instance already exists: %s' % str(app))
+
+                pg.setConfigOptions(antialias=True)
+                labelStyle = {'color': '#FFF', 'font-size': '12pt'}
+                win = pg.GraphicsWindow()
+                win.resize(1500, 1500)
+                win.setWindowTitle('Learning to represent signals spike-by-spike')
+
+                ps_first = []
+                for i in range(self.n_in):
+                        title = ("Initial Reconstruction of x%d" % i)
+                        ps_first.append(win.addPlot(title=title))
+                        win.nextRow()
+
+                p_initial_spikes = win.addPlot(title="Initial Spikes")
+                win.nextRow()
+
+                # Uncomment for different plot for each dimension of x
+                ps = []
+                for i in range(self.n_in):
+                        title = ("Reconstruction of x%d" % i)
+                        ps.append(win.addPlot(title=title))
+                        win.nextRow()
+
+                p_after_spikes = win.addPlot(title="Spikes")
+                win.nextRow()
+                p_recon_error = win.addPlot(title="Reconstruction error over time")
+                win.nextRow()
+                p_sparsity = win.addPlot(title="Sparsity (Number of spikes)")
+                win.nextRow()
+
+                # Uncomment for different plot for each dimension of x
+                for i in range(self.n_in):
+                        ps[i].plot(y=x[:,i], pen=pg.mkPen('r', width=1, style=pg.QtCore.Qt.DashLine))
+                        ps[i].plot(y=x_hat[:,i], pen=pg.mkPen('g', width=1, style=pg.QtCore.Qt.DashLine))
+
+
+                p_initial_spikes.plot(x=times_first, y=indices_first,
+                        pen=None, symbol='o', symbolPen=None,
+                        symbolSize=3, symbolBrush=(68, 245, 255))
+
+                for i in range(self.n_in):
+                    ps_first[i].plot(y=x[:,i], pen=pg.mkPen('r', width=1, style=pg.QtCore.Qt.DashLine))
+                    ps_first[i].plot(y=x_hat_first[:,i], pen=pg.mkPen('g', width=1, style=pg.QtCore.Qt.DashLine))
+
+                p_after_spikes.plot(x=times, y=indices,
+                                pen=None, symbol='o', symbolPen=None,
+                                symbolSize=3, symbolBrush=(68, 245, 255))
+
+                
+                for idx in range(0,errors.shape[1]):
+                        p_recon_error.plot(y=errors[:,idx], pen=pg.mkPen(self.colors[idx], width=1, style=pg.QtCore.Qt.DashLine))
+
+                p_sparsity.plot(y=num_spikes, pen=pg.mkPen('y', width=1, style=pg.QtCore.Qt.DashLine))
+
+                app.exec()
