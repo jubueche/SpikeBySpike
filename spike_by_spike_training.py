@@ -8,7 +8,7 @@ import numpy as np
 utils = Utils()
 
 #### Script to generate findings in paper "Learning to represent signals spike by spike" [https://arxiv.org/pdf/1703.03777.pdf]
-seed(42)
+seed(43)
 np.set_printoptions(precision=6, suppress=True) # For the rate vector
 
 x = utils.get_matlab_like_input()
@@ -88,7 +88,10 @@ def update_G(t):
     # Forumula is V_n(t) = D_n^T*x - D_n^T*Dr
     x_t = np.reshape(x[:, current_t], (-1,1))
     r_tmp = np.reshape(rt_1, (-1,1))
+
+    old_voltage_reconstructed = G.v_recon_    
     voltage_reconstructed = np.matmul(F_.T, x_t) + np.matmul(Omega_,r_tmp)
+
 
     if(current_t == 0):
         vt = 0.166*np.reshape(np.asarray(np.random.randn(utils.N)), (-1,1))
@@ -97,9 +100,15 @@ def update_G(t):
 
     ot = np.zeros(shape=ot_1.shape)
     
-    # TODO Check this. This is different in the paper
     T = utils.thresh*np.ones(shape=(utils.N,1)) - np.reshape(eps_t[:,current_t],(-1,1))
     k = np.argmax(vt - T)
+
+    # Reset the integration error, because we know the level of the threshold
+    for i in range(len(old_voltage_reconstructed)):
+        diff = old_voltage_reconstructed[i] - voltage_reconstructed[i]
+        if(diff > T[i]-0.05):
+            voltage_reconstructed[i] = T[i] - diff
+
     #print(vt[n])
 
     # Rule in the paper is Delta Omega_{n,k} = -beta(V_n + mu*r_n) - Omega_{n,k} - ... if neuron k spikes
@@ -122,10 +131,10 @@ def update_G(t):
         ot[k] = 1
         if(utils.use_learning):
             F_[:,k] = np.reshape(np.reshape(F_[:,k], (-1,1)) + utils.eps_f*(utils.alpha*np.reshape(I.xt_1_,(-1,1)) - np.reshape(F_[:,k], (-1,1))), (-1,))
-            tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(vt_1 + utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,))
+            #tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(vt_1 + utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,))
             #tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,)) # DOnt use vt
             # Use the reconstructed voltage in the update. Use G.v_recon_ since at this point it refers to v(t-1). voltage_reconstructed holds the value of v(t). The update is performed at the bottom.
-            #tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(np.reshape(G.v_recon_, (-1,1)) + utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,))
+            tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(np.reshape(G.v_recon_, (-1,1)) + utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,))
             tmp1 = Omega_[k,k] - utils.eps_omega*utils.mu
             Omega_[:,k] = tmp
             Omega_[k,k] = tmp1
@@ -198,11 +207,15 @@ for i in range(0,utils.num_iter):
     for j in range(len(errs)):
         s = s + ("Err%d is " % j) + ("%.6f" % errs[j]) + "    "
     
-    s = s + ("    #Spikes: %d" % np.sum(ot.ravel()))
+    s = s + ("#Spikes: %d" % np.sum(ot.ravel()))
     s = s + ("    Delta F: %.6f    Delta Omega: %.6f" % (delta_F, delta_Omega))
-    utils.eps_omega = utils.eps_omega / 2
-    utils.eps_f = utils.eps_f / 2
     print(s)
+
+    ##### Decay learning rate #####
+    if((i+1) % 5 == 0):
+        utils.eps_omega = utils.eps_omega *0.75 # was 0.5
+        utils.eps_f = utils.eps_f *0.75
+        print(("Reduced learning rate:     Eps Omega: %.6f     Eps F: %.6f" % (utils.eps_omega, utils.eps_f)))
     num_spikes.append(np.sum(ot.ravel()))
 
     # Collect x_hat from the first run w/o training
@@ -222,7 +235,7 @@ errors = np.asarray(errors)
 
 n = 5
 for i in range(0,n):
-        #plt.plot(v_recon[i,:], colors[i], label="Reconstructed voltage")
+        plt.plot(v_recon[i,:], utils.colors[i], label="Reconstructed voltage")
         plt.plot(v_true[i,:], utils.colors[i], label="True voltage")
 plt.legend()
 plt.show()

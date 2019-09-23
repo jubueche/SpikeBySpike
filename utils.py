@@ -11,12 +11,14 @@ class Utils:
         self.colors = ['m','b','y','r','g']
         self.penable = True # Enable plotting
         self.use_learning = True
-        self.num_iter = 2 # TODO How many iterations for training?
+        self.num_iter = 20 # TODO How many iterations for training?
         self.N = 20
         self.n_in = 2
         self.thresh = 0.5
 
-        self.duration = 8000 #ms # TODO How long should be one run through the signal? Matlab code: 5000 (ms?)
+        self.duration = 8000
+        self.short_duration = 8000
+        self.longer_duration = 12000 #ms # TODO How long should be one run through the signal? Matlab code: 5000 (ms?)
         self.delta_t = 1 # ms
         # TODO correct (2 lines below)?
         self.dtt = 10**-3
@@ -33,13 +35,17 @@ class Utils:
         self.beta = 1.25
         self.mu = 0.02#0.02 #l2 cost. High l2 cost -> Denser spike trains.
 
-        self.gamma = 40.5#0.8 #Initital FF weight. High -> High initial firing -> High number of updates
+        self.gamma = 30.5#0.8 #Initital FF weight. High -> High initial firing -> High number of updates
         self.omega = -0.5
 
         self.eta  = 1000 # TODO In the paper it says time constant 6ms. Does that correspond to sigma(std)=6 ?, 600
         self.mA_xrT = MovingAverage(shape=(self.n_in,self.N))
         self.mA_rrT = MovingAverage(shape=(self.N,self.N))
         self.mA_r = MovingAverage(shape=(self.N,1))
+
+    def set_duration(self, duration):
+        self.duration = duration
+        self.time_steps = int(self.duration/self.delta_t)
 
     def set_n_in(self, n=2):
         self.n_in = n
