@@ -3,6 +3,9 @@ from scipy.ndimage import gaussian_filter
 from moving_average import EMA, MovingAverage
 from pyqtgraph.Qt import QtGui
 import pyqtgraph as pg
+import sys
+import pyqtgraph.exporters
+
 
 
 class Utils:
@@ -17,8 +20,6 @@ class Utils:
         self.thresh = 0.5
 
         self.duration = 8000
-        self.short_duration = 8000
-        self.longer_duration = 12000 #ms # TODO How long should be one run through the signal? Matlab code: 5000 (ms?)
         self.delta_t = 1 # ms
         # TODO correct (2 lines below)?
         self.dtt = 10**-3
@@ -164,7 +165,7 @@ class Utils:
         return errors
 
 
-    def plot_results(self, x_hat_first, times_first, indices_first, x, x_hat, times, indices, errors, num_spikes):
+    def plot_results(self, x_hat_first, times_first, indices_first, x, x_hat, times, indices, errors, num_spikes, direc_image):
         if(self.penable):
                 app = QtGui.QApplication.instance()
                 if app is None:
@@ -225,4 +226,51 @@ class Utils:
 
                 p_sparsity.plot(y=num_spikes, pen=pg.mkPen('y', width=1, style=pg.QtCore.Qt.DashLine))
 
-                app.exec()
+                pg.QtGui.QApplication.processEvents()
+
+                ex = pg.exporters.ImageExporter(win.scene())
+                ex.export(fileName=direc_image)
+
+                if(self.penable):
+                    app.exec()
+
+
+    def plot_test_signal(self, x_hat, x_testing, indices, times, direc_image):
+        app = QtGui.QApplication.instance()
+        if app is None:
+                app = QtGui.QApplication(sys.argv)
+        else:
+                print('QApplication instance already exists: %s' % str(app))
+
+        pg.setConfigOptions(antialias=True)
+        labelStyle = {'color': '#FFF', 'font-size': '12pt'}
+        win = pg.GraphicsWindow()
+        win.resize(1500, 1500)
+        win.setWindowTitle('Learning to represent signals spike-by-spike')
+
+        ps = []
+        for i in range(self.n_in):
+                title = ("Initial Reconstruction of x%d" % i)
+                ps.append(win.addPlot(title=title))
+                win.nextRow()
+
+        p_spikes = win.addPlot(title="Initial Spikes")
+        win.nextRow()
+
+        x_testing = x_testing.T
+        for i in range(self.n_in):
+            ps[i].plot(y=x_testing[:,i], pen=pg.mkPen('r', width=1, style=pg.QtCore.Qt.DashLine))
+            ps[i].plot(y=x_hat[:,i], pen=pg.mkPen('g', width=1, style=pg.QtCore.Qt.DashLine))
+
+        p_spikes.plot(x=times, y=indices,
+                                pen=None, symbol='o', symbolPen=None,
+                                symbolSize=3, symbolBrush=(68, 245, 255))
+
+
+        pg.QtGui.QApplication.processEvents()
+
+        ex = pg.exporters.ImageExporter(win.scene())
+        ex.export(fileName=direc_image)
+
+        if(self.penable):
+            app.exec()
