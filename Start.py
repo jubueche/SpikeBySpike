@@ -47,10 +47,13 @@ start_time = time.time()
 
 import ipdb; ipdb.set_trace()
 
+local_vars = {}
+global_vars = {}
+
 if sys.version[0] == '2':
-    execfile(params['model_file'])
+    execfile(params['model_file'], local_vars, global_vars)
 elif sys.version[0] == '3':
-    exec(open(params['model_file']).read())
+    exec(open(params['model_file']).read(), local_vars, global_vars)
 else:
     print("unknown python version!")
     sys.exit(1)
