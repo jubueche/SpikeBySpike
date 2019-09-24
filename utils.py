@@ -47,15 +47,16 @@ class Utils:
 
     @classmethod
     def from_default(self):
-        return Utils(penable=True, use_learning=True, N=20, num_iter=20, n_in=2, thresh=0.5, duration=8000, delta_t=1,
+        return Utils(penable=True, use_learning=True, num_iter=20, N=20, n_in=2, thresh=0.5, duration=8000, delta_t=1,
                         dtt=10**-3, lambbda=0.02, sigma_x=1, sigma_eps_v=10**-2, sigma_eps_t=10**-2, eps_f=10**-3, eps_omega=10**-2,
                         alpha=0.21, beta=1.25, mu=0.02, gamma=30.5, omega=-0.5, eta=1000)
 
     @classmethod
     def from_json(self, dict):
-        return Utils(dict["penable"],dict["use_learning"],dict["num_iter"],dict["N"],dict["n_in"],dict["thresh"],dict["duration"],dict["delta_t"],
-                            dict["dtt"],dict["lambbda"],dict["sigma_x"],dict["sigma_eps_v"],dict["sigma_eps_t"],dict["eps_f"],dict["eps_omega"],
-                            dict["alpha"],dict["beta"],dict["mu"],dict["gamma"],dict["omega"],dict["eta"])
+        return Utils(penable=dict["penable"],use_learning=dict["use_learning"],num_iter=dict["num_iter"],N=dict["N"],n_in=dict["n_in"],thresh=dict["thresh"],
+                            duration=dict["duration"],delta_t=dict["delta_t"],dtt=dict["dtt"],lambbda=dict["lambbda"],sigma_x=dict["sigma_x"],
+                            sigma_eps_v=dict["sigma_eps_v"],sigma_eps_t=dict["sigma_eps_t"],eps_f=dict["eps_f"],eps_omega=dict["eps_omega"],
+                            alpha=dict["alpha"],beta=dict["beta"],mu=dict["mu"],gamma=dict["gamma"],omega=dict["omega"],eta=dict["eta"])
 
     def set_duration(self, duration):
         self.duration = duration

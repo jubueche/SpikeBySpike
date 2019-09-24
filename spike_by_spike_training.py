@@ -9,8 +9,7 @@ import sys
 import json
 
 ########## Parse training and testing input JSON files ##########
-
-"""if(sys.argv[1] != None):
+if(sys.argv[1] != None):
     with open(os.path.join(os.getcwd(), sys.argv[1]), 'r') as f:
         training_parameters = json.load(f)
 else:
@@ -20,7 +19,7 @@ if(sys.argv[2] != None):
     with open(os.path.join(os.getcwd(), sys.argv[2]), 'r') as f:
         testing_parameters = json.load(f)
 else:
-    raise SystemExit('Error: Please add testing parameters.')"""
+    raise SystemExit('Error: Please add testing parameters.')
 
 
 
@@ -209,7 +208,7 @@ seed(43)
 np.set_printoptions(precision=6, suppress=True) # For the rate vector
 
 #! Call Utils constructor with JSON object
-utils = Utils.from_default()
+utils = Utils.from_json(training_parameters)
 utils.penable = False #! Disabled plotting
 
 x = utils.get_matlab_like_input()
@@ -320,7 +319,7 @@ F = F_after
 num_signals = 5
 
 for k in range(num_signals):
-    utils_testing = Utils.from_default()
+    utils_testing = Utils.from_json(testing_parameters)
     utils_testing.penable = False #! Disabled plotting
     utils.use_learning = False
     x_testing = utils_testing.get_matlab_like_input()
