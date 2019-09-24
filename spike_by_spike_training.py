@@ -12,13 +12,13 @@ import json
 if(sys.argv[1] != None):
     saveFolder = sys.argv[1]
 if(sys.argv[2] != None):
-    with open(os.path.join(os.getcwd(), sys.argv[1]), 'r') as f:
+    with open(os.path.join(os.getcwd(), sys.argv[2]), 'r') as f:
         training_parameters = json.load(f)
 else:
     raise SystemExit('Error: Please add training parameters.')
 
 if(sys.argv[3] != None):
-    with open(os.path.join(os.getcwd(), sys.argv[2]), 'r') as f:
+    with open(os.path.join(os.getcwd(), sys.argv[3]), 'r') as f:
         testing_parameters = json.load(f)
 else:
     raise SystemExit('Error: Please add testing parameters.')
