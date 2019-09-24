@@ -4,6 +4,7 @@ from subprocess import call
 import helper_functions as hf
 
 istest = len(sys.argv) == 3 and sys.argv[2] == 'test'
+print(sys.argv)
 
 if not istest:
     print("Updating git")
