@@ -39,7 +39,7 @@ import time
 start_time = time.time()
 
 # Run simulation
-params = hf.folders_setup(p, params)
+params = hf.folders_setup(params, smt_record)
 # hf.log_dir(p)
 # print("hf.log_dir end")
 # hf.redirect(p)
