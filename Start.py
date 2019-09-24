@@ -23,15 +23,15 @@ if istest:
         print("unknown python version!")
         sys.exit(1)
     project = None
-    record = None
+    smt_record = None
 else:
-    params, project, record = hf.smt_it(parameter_file)
+    params, project, smt_record = hf.smt_it(parameter_file)
 
 
 if istest:
     params.update({"sumatra_label": 'test_sim'})
 else:
-    params.update({"sumatra_label": record.label})
+    params.update({"sumatra_label": smt_record.label})
 
 # p = {}
 
@@ -51,17 +51,17 @@ local_vars = {}
 global_vars = {}
 
 if sys.version[0] == '2':
-    execfile(params['model_file'], local_vars, global_vars)
+    execfile(params['model_file'])
 elif sys.version[0] == '3':
-    exec(open(params['model_file']).read(), local_vars, global_vars)
+    exec(open(params['model_file']).read())
 else:
     print("unknown python version!")
     sys.exit(1)
 
 if not istest:
-    record.duration = time.time() - start_time
-    record.output_data = record.datastore.find_new_data(record.timestamp)
-    project.add_record(record)
+    smt_record.duration = time.time() - start_time
+    smt_record.output_data = smt_record.datastore.find_new_data(smt_record.timestamp)
+    project.add_record(smt_record)
 
     project.save()
 
