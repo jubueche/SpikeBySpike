@@ -27,19 +27,13 @@ if istest:
 else:
     params, project, record = hf.smt_it(parameter_file)
 
-p = {}
-if sys.version[0] == '2':
-    execfile(params['model_file'],p)
-elif sys.version[0] == '3':
-    exec(open(params['model_file']).read(),p)
-else:
-    print("unknown python version!")
-    sys.exit(1)
 
 if istest:
     params.update({"sumatra_label": 'test_sim'})
 else:
     params.update({"sumatra_label": record.label})
+
+p = {}
 
 import time
 start_time = time.time()
@@ -50,6 +44,16 @@ hf.folders_setup(p, params)
 # print("hf.log_dir end")
 # hf.redirect(p)
 # print("hf.redirect end")
+
+if sys.version[0] == '2':
+    execfile(params['model_file'])
+elif sys.version[0] == '3':
+    exec(open(params['model_file']).read())
+else:
+    print("unknown python version!")
+    sys.exit(1)
+
+
 
 # Analysis and plotting
 hf.figure_files(p)

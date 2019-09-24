@@ -19,7 +19,7 @@ class Utils:
         self.n_in = 2
         self.thresh = 0.5
 
-        self.duration = 8000
+        self.duration = 80
         self.delta_t = 1 # ms
         # TODO correct (2 lines below)?
         self.dtt = 10**-3
