@@ -39,21 +39,20 @@ import time
 start_time = time.time()
 
 # Run simulation
-# hf.folders_setup(p, params)
+params = hf.folders_setup(p, params)
 # hf.log_dir(p)
 # print("hf.log_dir end")
 # hf.redirect(p)
 # print("hf.redirect end")
 
-import ipdb; ipdb.set_trace()
 
 local_vars = {}
-global_vars = {}
+global_vars = {'params':params}
 
 if sys.version[0] == '2':
-    execfile(params['model_file'])
+    execfile(params['model_file'],global_vars)
 elif sys.version[0] == '3':
-    exec(open(params['model_file']).read())
+    exec(open(params['model_file']).read(),global_vars)
 else:
     print("unknown python version!")
     sys.exit(1)

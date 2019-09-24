@@ -62,15 +62,15 @@ def smt_it(parameter_file):
                                 reason=reason)
     return params, project, record
 
-def folders_setup(p, params, rank=0, key='simConfig'):
-    p[key].saveFolder = "Data/%s" % (params["sumatra_label"])
-    filename = p[key].filename if p[key].filename else "sim_data"
-    p[key].filename = "Data/%s/%s" % (params["sumatra_label"], filename)
-    if rank == 0:
-        os.system('mkdir -p %s'%p[key].saveFolder)
-        with open('last_sim_dir.txt','w') as dirname:
-            dirname.write(p[key].saveFolder+'/')
-    return p
+def folders_setup(params, record):
+    params['saveFolder'] = "Data/%s" % record.label
+    # filename = p[key].filename if p[key].filename else "sim_data"
+    # p[key].filename = "Data/%s/%s" % (params["sumatra_label"], filename)
+    # if rank == 0:
+    os.system('mkdir -p %s'%params['saveFolder'])
+    with open('last_sim_dir.txt','w') as dirname:
+        dirname.write(params['saveFolder']+'/')
+    return params
 
 def log_dir(p, rank=0):
     if rank == 0:
