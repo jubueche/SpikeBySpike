@@ -10,39 +10,52 @@ import pyqtgraph.exporters
 
 class Utils:
 
-    def __init__(self):
+    def __init__(self, penable, use_learning, num_iter, N, n_in, thresh, duration, delta_t, dtt, lambbda, sigma_x, sigma_eps_v,
+                        sigma_eps_t, eps_f, eps_omega, alpha, beta, mu, gamma, omega, eta):
         self.colors = ['m','b','y','r','g']
-        self.penable = True # Enable plotting
-        self.use_learning = True
-        self.num_iter = 20 # TODO How many iterations for training?
-        self.N = 20
-        self.n_in = 2
-        self.thresh = 0.5
+        self.penable = penable # Enable plotting
+        self.use_learning = use_learning
+        self.num_iter = num_iter # TODO How many iterations for training?
+        self.N = N
+        self.n_in = n_in
+        self.thresh = thresh
 
-        self.duration = 8000
-        self.delta_t = 1 # ms
+        self.duration = duration
+        self.delta_t = delta_t # ms
         # TODO correct (2 lines below)?
-        self.dtt = 10**-3
-        self.lambbda = float(1/50) # TODO Lambda is 50 s^-1
+        self.dtt = dtt
+        self.lambbda = lambbda # TODO Lambda is 50 s^-1
 
         self.lambbda_f = self.lambbda #Only for first experiment
         self.time_steps = int(self.duration/self.delta_t)
-        self.sigma_x = 1 # TODO See table 1 in [https://arxiv.org/src/1703.03777v2/anc/SI.pdf]. In the SI it is 2*10^3
-        self.sigma_eps_v = 10**-2 # 10**-3
-        self.sigma_eps_t = 2*10**-2
-        self.eps_f = 10**-3 #-4 and -3
-        self.eps_omega = 10**-2
-        self.alpha = 0.21
-        self.beta = 1.25
-        self.mu = 0.02#0.02 #l2 cost. High l2 cost -> Denser spike trains.
+        self.sigma_x = sigma_x # TODO See table 1 in [https://arxiv.org/src/1703.03777v2/anc/SI.pdf]. In the SI it is 2*10^3
+        self.sigma_eps_v = sigma_eps_v # 10**-3
+        self.sigma_eps_t = sigma_eps_t
+        self.eps_f = eps_f #-4 and -3
+        self.eps_omega = eps_omega
+        self.alpha = alpha
+        self.beta = beta
+        self.mu = mu#0.02 #l2 cost. High l2 cost -> Denser spike trains.
 
-        self.gamma = 30.5#0.8 #Initital FF weight. High -> High initial firing -> High number of updates
-        self.omega = -0.5
+        self.gamma = gamma#0.8 #Initital FF weight. High -> High initial firing -> High number of updates
+        self.omega = omega
 
-        self.eta  = 1000 # TODO In the paper it says time constant 6ms. Does that correspond to sigma(std)=6 ?, 600
+        self.eta  = eta # TODO In the paper it says time constant 6ms. Does that correspond to sigma(std)=6 ?, 600
         self.mA_xrT = MovingAverage(shape=(self.n_in,self.N))
         self.mA_rrT = MovingAverage(shape=(self.N,self.N))
         self.mA_r = MovingAverage(shape=(self.N,1))
+
+    @classmethod
+    def from_default(self):
+        return Utils(penable=True, use_learning=True, N=20, num_iter=20, n_in=2, thresh=0.5, duration=8000, delta_t=1,
+                        dtt=10**-3, lambbda=0.02, sigma_x=1, sigma_eps_v=10**-2, sigma_eps_t=10**-2, eps_f=10**-3, eps_omega=10**-2,
+                        alpha=0.21, beta=1.25, mu=0.02, gamma=30.5, omega=-0.5, eta=1000)
+
+    @classmethod
+    def from_json(self, dict):
+        return Utils(dict["penable"],dict["use_learning"],dict["num_iter"],dict["N"],dict["n_in"],dict["thresh"],dict["duration"],dict["delta_t"],
+                            dict["dtt"],dict["lambbda"],dict["sigma_x"],dict["sigma_eps_v"],dict["sigma_eps_t"],dict["eps_f"],dict["eps_omega"],
+                            dict["alpha"],dict["beta"],dict["mu"],dict["gamma"],dict["omega"],dict["eta"])
 
     def set_duration(self, duration):
         self.duration = duration
