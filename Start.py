@@ -47,8 +47,8 @@ params = hf.folders_setup(params, smt_record)
 
 
 local_vars = {}
-global_vars = {'params':params}
-
+global_vars = {'params':params,
+               'sys.argv':sys.argv}
 if sys.version[0] == '2':
     execfile(params['model_file'],global_vars)
 elif sys.version[0] == '3':
