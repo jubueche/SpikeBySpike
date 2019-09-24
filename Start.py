@@ -45,6 +45,8 @@ start_time = time.time()
 # hf.redirect(p)
 # print("hf.redirect end")
 
+import ipdb; ipdb.set_trace()
+
 if sys.version[0] == '2':
     execfile(params['model_file'])
 elif sys.version[0] == '3':
