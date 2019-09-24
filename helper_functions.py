@@ -63,7 +63,7 @@ def smt_it(parameter_file):
     return params, project, record
 
 def folders_setup(params, record):
-    params['saveFolder'] = "Data/%s" % record.label
+    params.update({"saveFolder": "Data/%s" % record.label})
     # filename = p[key].filename if p[key].filename else "sim_data"
     # p[key].filename = "Data/%s/%s" % (params["sumatra_label"], filename)
     # if rank == 0:
