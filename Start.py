@@ -47,12 +47,12 @@ params = hf.folders_setup(params, smt_record)
 
 
 local_vars = {}
-global_vars = {'params':params,
+globas = {'params':params,
                'sys.argv':sys.argv}
 if sys.version[0] == '2':
-    execfile(params['model_file'],global_vars)
+    execfile(params['model_file'],globas)
 elif sys.version[0] == '3':
-    exec(open(params['model_file']).read(),global_vars)
+    exec(open(params['model_file']).read(),globas)
 else:
     print("unknown python version!")
     sys.exit(1)
