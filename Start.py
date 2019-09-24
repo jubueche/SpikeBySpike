@@ -46,7 +46,7 @@ params = hf.folders_setup(params, smt_record)
 # hf.redirect(p)
 # print("hf.redirect end")
 
-call([sys.executable, params['saveFolder'], 'training.param', 'testing.param'])
+call([sys.executable, 'spike_by_spike_training.py', params['saveFolder'], 'training.param', 'testing.param'])
 
 
 if not istest:
