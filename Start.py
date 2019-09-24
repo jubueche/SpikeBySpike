@@ -1,4 +1,5 @@
 import sys, os
+from subprocess import call
 
 import helper_functions as hf
 
@@ -45,17 +46,8 @@ params = hf.folders_setup(params, smt_record)
 # hf.redirect(p)
 # print("hf.redirect end")
 
+call([sys.executable, params['model_file'], 'training.param', 'testing.param'])
 
-local_vars = {}
-globas = {'params':params,
-               'sys.argv':sys.argv[0:3]}
-if sys.version[0] == '2':
-    execfile(params['model_file'],globas)
-elif sys.version[0] == '3':
-    exec(open(params['model_file']).read(),globas, local_vars)
-else:
-    print("unknown python version!")
-    sys.exit(1)
 
 if not istest:
     smt_record.duration = time.time() - start_time
