@@ -185,7 +185,14 @@ def create_network(F, Omega, utils, x):
 # End create_network()
 
 ########### Create a new folder storing plots ###########
-direc = os.path.join(os.getcwd(), "log")
+if params:
+    if 'saveFolder' in params.keys():
+        dir_base = os.path.join(os.getcwd(), params['saveFolder'])
+        direc = os.path.join(dir_base, "log")
+    else:
+        print('saveFolder ust be defined in the parameters!!')
+else:
+    direc = os.path.join(os.getcwd(), "log")
 direc_training = os.path.join(direc, "training")
 direc_testing = os.path.join(direc, "testing")
 if(not os.path.exists(direc)):
