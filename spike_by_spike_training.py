@@ -173,8 +173,7 @@ if params:
         dir_base = os.path.join(os.getcwd(), params['saveFolder'])
         direc = os.path.join(dir_base, "log")
     else:
-        except ValueError:
-            print('saveFolder ust be defined in the parameters!!')
+        print('saveFolder ust be defined in the parameters!!')
 else:
     direc = os.path.join(os.getcwd(), "log")
 direc_training = os.path.join(direc, "training")
