@@ -184,7 +184,7 @@ def create_network(F, Omega, utils, x):
 # End create_network()
 
 ########### Create a new folder storing plots ###########
-direc = os.path.join(os.getcwd(), "log")
+direc = os.path.join(os.getcwd(), "Data")
 direc_training = os.path.join(direc, "training")
 direc_testing = os.path.join(direc, "testing")
 if(not os.path.exists(direc)):
