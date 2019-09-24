@@ -33,13 +33,13 @@ if istest:
 else:
     params.update({"sumatra_label": record.label})
 
-p = {}
+# p = {}
 
 import time
 start_time = time.time()
 
 # Run simulation
-hf.folders_setup(p, params)
+# hf.folders_setup(p, params)
 # hf.log_dir(p)
 # print("hf.log_dir end")
 # hf.redirect(p)
@@ -52,14 +52,6 @@ elif sys.version[0] == '3':
 else:
     print("unknown python version!")
     sys.exit(1)
-
-
-
-# Analysis and plotting
-hf.figure_files(p)
-print("hf.figure_files end")
-
-exec(open('spike_by_spike_training.py').read(), global_vars, params)
 
 if not istest:
     record.duration = time.time() - start_time
