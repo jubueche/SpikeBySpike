@@ -30,7 +30,7 @@ def git_it():
         elif comment == 'B':
             os.system('git commit -m "Bugfix"')
         else:
-            os.system('git commit -m "%s"'%comment)
+            os.system('git commit -m "%s"' % comment)
 
 def smt_it(parameter_file):
     import sumatra as smt

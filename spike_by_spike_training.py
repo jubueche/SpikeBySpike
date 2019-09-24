@@ -11,17 +11,13 @@ import json
 ########## Parse training and testing input JSON files ##########
 if(sys.argv[1] != None):
     saveFolder = sys.argv[1]
+else:
+    raise SystemExit('Error: Please specify folder to save data in.')
 if(sys.argv[2] != None):
     with open(os.path.join(os.getcwd(), sys.argv[2]), 'r') as f:
-        training_parameters = json.load(f)
+        parameters = json.load(f)
 else:
-    raise SystemExit('Error: Please add training parameters.')
-
-if(sys.argv[3] != None):
-    with open(os.path.join(os.getcwd(), sys.argv[3]), 'r') as f:
-        testing_parameters = json.load(f)
-else:
-    raise SystemExit('Error: Please add testing parameters.')
+    raise SystemExit('Error: Please add parameters file.')
 
 
 
@@ -190,6 +186,7 @@ if saveFolder:
     direc = os.path.join(os.getcwd(), saveFolder)
 else:
     direc = os.path.join(os.getcwd(), "log")
+
 direc_training = os.path.join(direc, "training")
 direc_testing = os.path.join(direc, "testing")
 if(not os.path.exists(direc)):
@@ -206,7 +203,7 @@ seed(43)
 np.set_printoptions(precision=6, suppress=True) # For the rate vector
 
 #! Call Utils constructor with JSON object
-utils = Utils.from_json(training_parameters)
+utils = Utils.from_json(parameters["training"])
 utils.penable = False #! Disabled plotting
 
 x = utils.get_matlab_like_input()
@@ -317,7 +314,7 @@ F = F_after
 num_signals = 5
 
 for k in range(num_signals):
-    utils_testing = Utils.from_json(testing_parameters)
+    utils_testing = Utils.from_json(parameters["testing"])
     utils_testing.penable = False #! Disabled plotting
     utils.use_learning = False
     x_testing = utils_testing.get_matlab_like_input()

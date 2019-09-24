@@ -1,19 +1,23 @@
 import sys, os
 from subprocess import call
-
 import helper_functions as hf
+import json
+import time
 
-istest = sys.argv[1] == 'test'
+if(sys.argv[1] != None):
+    parameter_file = sys.argv[1]
+else:
+    raise SystemExit('Error: Please add training parameters.')
 
-if not istest:
+is_test = False
+if(len(sys.argv)>2):
+    is_test = sys.argv[2] == "test"
+
+if not is_test:
     print("Updating git")
     hf.git_it()
 
-if len(sys.argv)>1:
-    parameter_file = sys.argv[1]
-else:
-    parameter_file = 'params.py'
-if istest:
+if is_test:
     params = {}
     global_vars = {}
     if sys.version[0] == '2':
@@ -29,27 +33,19 @@ else:
     params, project, smt_record = hf.smt_it(parameter_file)
 
 
-if istest:
+if is_test:
     params.update({"sumatra_label": 'test_sim'})
 else:
     params.update({"sumatra_label": smt_record.label})
 
-# p = {}
 
-import time
 start_time = time.time()
-
-# Run simulation
 params = hf.folders_setup(params, smt_record)
-# hf.log_dir(p)
-# print("hf.log_dir end")
-# hf.redirect(p)
-# print("hf.redirect end")
-
-call([sys.executable, 'spike_by_spike_training.py', params['saveFolder'], 'training.param', 'testing.param'])
+# Run simulation
+call([sys.executable, 'spike_by_spike_training.py', "Data/" + params['saveFolder'], parameter_file])
 
 
-if not istest:
+if not is_test:
     smt_record.duration = time.time() - start_time
     smt_record.output_data = smt_record.datastore.find_new_data(smt_record.timestamp)
     project.add_record(smt_record)
