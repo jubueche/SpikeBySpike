@@ -38,7 +38,6 @@ def git_it():
 
 def smt_it(parameter_file):
     params = build_parameters(parameter_file)
-    print(params)
     project = load_project()
     print(sys.version)
     if sys.version[0] == '2':
