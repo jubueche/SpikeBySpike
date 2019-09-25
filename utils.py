@@ -288,3 +288,14 @@ class Utils:
 
         if(self.penable):
             app.exec()
+
+    def save_omega(self, direc, X, **kwargs):
+        figsize=(np.asarray(X.shape))[::-1]
+        rcParams.update({'figure.figsize':figsize})
+        fig = figure(figsize=figsize)
+        axes([0,0,1,1]) # Make the plot occupy the whole canvas
+        axis('off')
+        fig.set_size_inches(figsize)
+        imshow(X,origin='lower', **kwargs)
+        savefig(direc, facecolor='black', edgecolor='black', dpi=100)
+        close(fig)

@@ -229,6 +229,9 @@ conn_F = return_dict["conn_F"]
 
 x_hat_first = np.ones(shape=(utils.time_steps, utils.n_in))
 
+# Save the matrix before training
+utils.save_omega(os.path.join(direc_training, "omega_heat_map_before_training.png"), Omega)
+
 ########### Training ###########
 log_file = open(os.path.join(direc_training, 'log.txt'), "w+")
 
@@ -319,6 +322,11 @@ utils.plot_results(x_hat_first, times_first, indices_first, x, x_hat, times, ind
 print("Testing...")
 Omega = Omega_after
 F = F_after
+
+# Save the matrix after training
+utils.save_omega(os.path.join(direc_training, "omega_heat_map_after_training.png"), Omega)
+
+
 num_signals = 5
 
 for k in range(num_signals):
