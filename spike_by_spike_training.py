@@ -230,7 +230,10 @@ conn_F = return_dict["conn_F"]
 x_hat_first = np.ones(shape=(utils.time_steps, utils.n_in))
 
 ########### Training ###########
+log_file = open(os.path.join(direc_training, 'log.txt'), "w+")
+
 print("Training...")
+log_file.write("Training...\r\n")
 
 errors = []
 num_spikes = []
@@ -270,12 +273,15 @@ for i in range(0,utils.num_iter):
     s = s + ("#Spikes: %d" % np.sum(ot.ravel()))
     s = s + ("    Delta F: %.6f    Delta Omega: %.6f" % (delta_F, delta_Omega))
     print(s)
+    log_file.write(s + "\r\n")
 
     ##### Decay learning rate #####
     if((i+1) % 5 == 0):
         utils.eps_omega = utils.eps_omega *0.75 # was 0.5
         utils.eps_f = utils.eps_f *0.75
-        print(("Reduced learning rate:     Eps Omega: %.6f     Eps F: %.6f" % (utils.eps_omega, utils.eps_f)))
+        s = ("Reduced learning rate:     Eps Omega: %.6f     Eps F: %.6f" % (utils.eps_omega, utils.eps_f))
+        print(s)
+        log_file.write(s + "\r\n")
     num_spikes.append(np.sum(ot.ravel()))
 
     # Collect x_hat from the first run w/o training
@@ -289,6 +295,8 @@ for i in range(0,utils.num_iter):
     net.restore(name='Init')
     conn_F.weight = np.reshape(F_after, (-1,))
     conn_Omega.weight = np.reshape(Omega_after, (-1,))
+
+log_file.close()
 
 x = x.T
 errors = np.asarray(errors)
