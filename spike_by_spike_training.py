@@ -136,12 +136,11 @@ def create_network(F, Omega, utils, x):
                 #tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,)) # DOnt use vt
                 # Use the reconstructed voltage in the update. Use G.v_recon_ since at this point it refers to v(t-1). voltage_reconstructed holds the value of v(t). The update is performed at the bottom.
                 tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(np.reshape(G.v_recon_, (-1,1)) + utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,))
-                tmp1 = Omega_[k,k] - utils.eps_omega*utils.mu
+                # tmp1 = Omega_[k,k] - utils.eps_omega*utils.mu #! No single threshold update on DYNAPS
                 update_threshold = np.ones(utils.N)*Omega_.diagonal() - utils.eps_omega*utils.mu*0.1
-                print(update_threshold)
                 Omega_[:,k] = tmp
-                #Omega_[k,k] = tmp1 #! No threshold update on DYNAPS
-                np.fill_diagonal(Omega_, update_threshold)
+                #Omega_[k,k] = tmp1 #! No single threshold update on DYNAPS
+                np.fill_diagonal(Omega_, update_threshold) # On DYNAPS, can only update all thresholds
 
                 # Assign
                 conn_F.weight = np.copy(np.reshape(F_, (-1,)))
