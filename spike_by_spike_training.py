@@ -207,7 +207,6 @@ utils = Utils.from_json(parameters["training"])
 utils.penable = False #! Disabled plotting
 
 x = utils.get_matlab_like_input()
-plt.figure(figsize=(30,20))
 plt.plot(x.T)
 plt.savefig(os.path.join(direc_training, "training_input.png"))
 if(utils.penable):
@@ -294,7 +293,6 @@ x = x.T
 errors = np.asarray(errors)
 
 n = 5
-plt.figure(figsize=(30,20))
 for i in range(0,n):
         plt.plot(v_recon[i,:], utils.colors[i], label="Reconstructed voltage")
         plt.plot(v_true[i,:], utils.colors[i], label="True voltage")
@@ -318,7 +316,6 @@ for k in range(num_signals):
     utils_testing.penable = False #! Disabled plotting
     utils.use_learning = False
     x_testing = utils_testing.get_matlab_like_input()
-    plt.figure(figsize=(30,20))
     plt.plot(x_testing.T)
     plt.savefig(os.path.join(direc_testing, (("test_signal_%d.png") % k)))
     if(utils_testing.penable):
