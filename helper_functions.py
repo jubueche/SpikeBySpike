@@ -1,4 +1,8 @@
 import sys,os
+import sumatra as smt
+from sumatra.projects import load_project
+from sumatra.parameters import build_parameters
+
 
 def git_it():
     import git as gp
@@ -33,10 +37,8 @@ def git_it():
             os.system('git commit -m "%s"' % comment)
 
 def smt_it(parameter_file):
-    import sumatra as smt
-    from sumatra.projects import load_project
-    from sumatra.parameters import build_parameters
     params = build_parameters(parameter_file)
+    print(params)
     project = load_project()
     print(sys.version)
     if sys.version[0] == '2':
