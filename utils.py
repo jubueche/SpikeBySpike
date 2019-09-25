@@ -5,7 +5,7 @@ from pyqtgraph.Qt import QtGui
 import pyqtgraph as pg
 import sys
 import pyqtgraph.exporters
-
+from matplotlib.pyplot import *
 
 
 class Utils:
