@@ -138,7 +138,7 @@ def create_network(F, Omega, utils, x):
                 tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(np.reshape(G.v_recon_, (-1,1)) + utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,))
                 tmp1 = Omega_[k,k] - utils.eps_omega*utils.mu
                 Omega_[:,k] = tmp
-                Omega_[k,k] = tmp1
+                #Omega_[k,k] = tmp1 #! No threshold update on DYNAPS
 
                 # Assign
                 conn_F.weight = np.copy(np.reshape(F_, (-1,)))
