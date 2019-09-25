@@ -60,6 +60,7 @@ def smt_it(parameter_file):
         sys.exit(1)
     if len(reason) == 0:
         reason = "Reason not provided. Test sim for reasons stated above (Maybe)."
+    print(reason)
     record = project.new_record(parameters=params,
                                 reason=reason)
     return params, project, record
