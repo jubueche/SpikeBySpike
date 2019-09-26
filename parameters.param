@@ -1,6 +1,6 @@
 {
     "training" : {
-        "penable": true,
+        "penable": false,
         "use_learning" : true,
         "num_iter" : 2,
         "N" : 20,

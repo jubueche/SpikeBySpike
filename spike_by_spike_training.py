@@ -206,7 +206,6 @@ np.set_printoptions(precision=6, suppress=True) # For the rate vector
 
 #! Call Utils constructor with JSON object
 utils = Utils.from_json(parameters["training"])
-utils.penable = False #! Disabled plotting
 
 x = utils.get_matlab_like_input()
 plt.figure(figsize=(10,8))
@@ -333,7 +332,6 @@ num_signals = 5
 
 for k in range(num_signals):
     utils_testing = Utils.from_json(parameters["testing"])
-    utils_testing.penable = False #! Disabled plotting
     utils.use_learning = False
     x_testing = utils_testing.get_matlab_like_input()
     plt.figure(figsize=(10,8))
