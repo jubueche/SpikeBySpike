@@ -47,7 +47,7 @@ class Utils:
 
     @classmethod
     def from_default(self):
-        return Utils(penable=True, use_learning=True, num_iter=20, N=20, n_in=2, thresh=0.5, duration=80, delta_t=1,
+        return Utils(penable=True, use_learning=True, num_iter=20, N=20, n_in=2, thresh=0.5, duration=8000, delta_t=1,
                         dtt=10**-3, lambbda=0.02, sigma_x=1, sigma_eps_v=10**-2, sigma_eps_t=10**-2, eps_f=10**-3, eps_omega=10**-2,
                         alpha=0.21, beta=1.25, mu=0.02, gamma=30.5, omega=-0.5, eta=1000)
 

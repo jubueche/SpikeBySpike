@@ -317,7 +317,7 @@ if(utils.penable):
     plt.show()
 
 ########### Plotting ###########
-utils.plot_results(x_hat_first, times_first, indices_first, x, x_hat, times, indices, errors, num_spikes, os.path.join(direc_training, "training.png"))
+utils.plot_results(x_hat_first, times_first, indices_first, x, x_hat, times, indices, errors, num_spikes, os.path.join(direc_training, "after_training.png"))
 
 
 ########### Testing ###########
