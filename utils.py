@@ -264,11 +264,11 @@ class Utils:
 
         ps = []
         for i in range(self.n_in):
-                title = ("Initial Reconstruction of x%d" % i)
+                title = ("Reconstruction of x%d after learning" % i)
                 ps.append(win.addPlot(title=title))
                 win.nextRow()
 
-        p_spikes = win.addPlot(title="Initial Spikes")
+        p_spikes = win.addPlot(title="Spikes after learning")
         win.nextRow()
 
         x_testing = x_testing.T
