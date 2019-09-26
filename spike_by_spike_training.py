@@ -143,7 +143,7 @@ def create_network(F, Omega, utils, x):
                 np.fill_diagonal(Omega_, update_threshold) # On DYNAPS, can only update all thresholds
 
                 # Assign
-                conn_F.weight = np.copy(np.reshape(F_, (-1,)))
+                # conn_F.weight = np.copy(np.reshape(F_, (-1,))) #! No F update on DYNAPS
                 conn_Omega.weight = np.copy(np.reshape(Omega_, (-1,)))
 
 
@@ -218,6 +218,10 @@ F = np.random.normal(loc=0.0, scale=1.0, size=(utils.n_in, utils.N)) # Initializ
 for (idx,row) in enumerate(F): # Normalize F
     tmp = utils.gamma* (row / np.sqrt(np.sum(row**2)))
     F[idx,:] = tmp
+
+# Pickle the feed forward matrix
+F.dump(os.path.join("DYNAPS"), "F.dat")
+
 Omega = np.eye(utils.N,utils.N)*utils.omega # Initialize Omega
 
 return_dict = create_network(F, Omega, utils, x)
@@ -256,7 +260,7 @@ for i in range(0,utils.num_iter):
     Omega_after = np.copy(np.reshape(conn_Omega.weight, (utils.N,utils.N)))
     F_after = np.copy(np.reshape(conn_F.weight, (utils.n_in, utils.N)))
 
-    utils.save_omega(os.path.join(direc_training, ("omega_heat_map_iter%d.png" % i)), Omega_after)
+    # utils.save_omega(os.path.join(direc_training, ("omega_heat_map_iter%d.png" % i)), Omega_after) #! Uncomment for storing Omega heat map at every iter
 
     delta_F = np.linalg.norm(F_before.ravel()-F_after.ravel(), 2)
     delta_Omega = np.linalg.norm(Omega_before.ravel()-Omega_after.ravel(), 2)
