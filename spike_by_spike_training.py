@@ -220,7 +220,7 @@ for (idx,row) in enumerate(F): # Normalize F
     F[idx,:] = tmp
 
 # Pickle the feed forward matrix
-F.dump(os.path.join("DYNAPS"), "F.dat")
+F.dump(os.path.join("DYNAPS", "F.dat"))
 
 Omega = np.eye(utils.N,utils.N)*utils.omega # Initialize Omega
 
