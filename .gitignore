@@ -13,4 +13,4 @@ Data
 .vscode
 venv
 playground.py
-DYNAPS/venv
+**/venv
