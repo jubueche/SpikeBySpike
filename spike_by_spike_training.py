@@ -256,6 +256,8 @@ for i in range(0,utils.num_iter):
     Omega_after = np.copy(np.reshape(conn_Omega.weight, (utils.N,utils.N)))
     F_after = np.copy(np.reshape(conn_F.weight, (utils.n_in, utils.N)))
 
+    utils.save_omega(os.path.join(direc_training, ("omega_heat_map_iter%d.png" % i)), Omega_after)
+
     delta_F = np.linalg.norm(F_before.ravel()-F_after.ravel(), 2)
     delta_Omega = np.linalg.norm(Omega_before.ravel()-Omega_after.ravel(), 2)
 
