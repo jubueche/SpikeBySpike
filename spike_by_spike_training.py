@@ -75,11 +75,14 @@ def create_network(F, Omega, utils, x):
     @network_operation(dt=utils.delta_t*ms)
     def update_G(t):
 
+
         current_t = int((t/ms)/utils.delta_t) # in [0,duration)
 
         F_ = np.copy(np.reshape(conn_F.weight, (utils.n_in, utils.N)))
         Omega_ = np.copy(np.reshape(conn_Omega.weight, (utils.N, utils.N)))
-        
+
+        print(Omega_)
+
         ct_1 = np.copy(np.reshape(I.ct_1_, (-1,1)))
         vt_1 = np.copy(np.reshape(G.vt_1, (-1,1)))
         ot_1 = np.copy(np.reshape(G.ot_1, (-1,1)))
