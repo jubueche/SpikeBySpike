@@ -155,7 +155,6 @@ def create_network(F, Omega, utils, x):
                 # conn_Omega.weight = np.copy(np.reshape(Omega_, (-1,))) #! No Omega offline
                 conn_Omega.weight = np.copy(np.reshape(utils.threshold_matrix(Omega_offline), (-1,))) # ! Need to threshold the offline version here
 
-
         rt = (1-utils.lambbda*utils.dtt)*rt_1 + ot_1
         #print(rt)
 
