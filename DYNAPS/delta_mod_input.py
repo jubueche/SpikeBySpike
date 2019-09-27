@@ -43,7 +43,7 @@ for i in range(x.shape[0]):
 ups = np.asarray(ups)
 downs = np.asarray(downs)
 
-for idx, up, down in enumerate((ups, downs)):
+for idx, (up, down) in enumerate((ups, downs)):
         up.dump(os.path.join("Resources",("x%d_up.dat" % idx)))
         down.dump(os.path.join("Resources",("x%d_down.dat" % idx)))
 
