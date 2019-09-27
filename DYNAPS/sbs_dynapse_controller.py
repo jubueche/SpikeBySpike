@@ -74,50 +74,51 @@ class SBSController():
         """
         
         self.input_weights = np.load("Resources/F.dat")
-        self.isi_1_up = np.load("Resources/up_1_isi.dat")
-        self.isi_1_down = np.load("Resources/down_1_isi.dat")
-        self.isi_2_up = np.load("Resources/up_2_isi.dat")
-        self.isi_2_down = np.load("Resources/down_2_isi.dat")
+        self.spikes_0_up = np.load("Resources/x0_up.dat")
+        self.spikes_0_down = np.load("Resources/x0_down.dat")
+        self.spikes_1_up = np.load("Resources/x1_up.dat")
+        self.spikes_1_down = np.load("Resources/x1_down.dat")
         
-        fpga_evts = []
+        fpga_evts = self.compile_preloaded_stimulus(dummy_neuron_id = 255)
         
-        for isi in self.isi_1_up:
-            fpga_event = self.c.modules.CtxDynapse.FpgaSpikeEvent()
-            fpga_event.core_mask = 15
-            fpga_event.target_chip = self.chip_id
-            fpga_event.neuron_id = 1
-            fpga_event.isi = int(isi)
-            fpga_evts.append(fpga_event)
+        ##TODO: Convert timestamps to ISI
+        
+        
+#        for isi in self.isi_1_up:
+#            fpga_event = self.c.modules.CtxDynapse.FpgaSpikeEvent()
+#            fpga_event.core_mask = 15
+#            fpga_event.target_chip = self.chip_id
+#            fpga_event.neuron_id = 1
+#            fpga_event.isi = int(isi)
+#            fpga_evts.append(fpga_event)
+#        
+#        
+#        self.spikegen.set_variable_isi(True)
+#        self.spikegen.preload_stimulus([fpga_event])
+#        self.spikegen.set_repeat_mode(False)
+    
+    def compile_preloaded_stimulus(self, dummy_neuron_id = 255):
+        
+        output_events = []
+        for timestamp in self.spikes_0_up:
+            output_events.append([1, int(timestamp*1000)])
+        for timestamp in self.spikes_0_down:
+            output_events.append([2, int(timestamp*1000)])
+        for timestamp in self.spikes_1_up:
+            output_events.append([3, int(timestamp*1000)])
+        for timestamp in self.spikes_1_down:
+            output_events.append([4, int(timestamp*1000)])
             
-        for isi in self.isi_1_down:
-            fpga_event = self.c.modules.CtxDynapse.FpgaSpikeEvent()
-            fpga_event.core_mask = 15
-            fpga_event.target_chip = self.chip_id
-            fpga_event.neuron_id = 2
-            fpga_event.isi = int(isi)
-            fpga_evts.append(fpga_event)
-            
-        for isi in self.isi_2_up:
-            fpga_event = self.c.modules.CtxDynapse.FpgaSpikeEvent()
-            fpga_event.core_mask = 15
-            fpga_event.target_chip = self.chip_id
-            fpga_event.neuron_id = 3
-            fpga_event.isi = int(isi)
-            fpga_evts.append(fpga_event)
-            
-        for isi in self.isi_2_down:
-            fpga_event = self.c.modules.CtxDynapse.FpgaSpikeEvent()
-            fpga_event.core_mask = 15
-            fpga_event.target_chip = self.chip_id
-            fpga_event.neuron_id = 4
-            fpga_event.isi = int(isi)
-            fpga_evts.append(fpga_event)
+        output_events = output_events[output_events[:,1].argsort()]
+        output_events = np.insert(output_events, 0, [dummy_neuron_id,0], axis = 0)
         
-        
-        self.spikegen.set_variable_isi(True)
-        self.spikegen.preload_stimulus([fpga_event])
-        self.spikegen.set_repeat_mode(False)
-
+        tmp_id = 1
+        while tmp_id < len(output_events):
+            if output_events[tmp_id,1] - output_events[tmp_id-1,1] > self.max_isi:
+                output_events = np.insert(output_events, tmp_id, [dummy_neuron_id,output_events[tmp_id-1,1]+self.max_isi-1], axis = 0)
+            tmp_id += 1
+            
+        return output_events
         
     def plot_raster(self):
         pass
