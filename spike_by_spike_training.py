@@ -349,8 +349,6 @@ if(utils.penable):
 
 # Number of weights different from 0
 Omega_after.dump(os.path.join("DYNAPS/Resources", "Omega_after.dat"))
-n_not_zero = sum(Omega_after.ravel() != 0)
-print(("Number of non zero elements in Omega is %d" % n_not_zero))
 
 # Save the matrix after training
 utils.save_omega(os.path.join(direc_training, "omega_heat_map_after_training.png"), Omega)

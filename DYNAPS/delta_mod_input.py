@@ -43,8 +43,9 @@ for i in range(x.shape[0]):
 ups = np.asarray(ups)
 downs = np.asarray(downs)
 
-ups.dump(os.path.join("Resources", "up_spikes.dat"))
-downs.dump(os.path.join("Resources", "down_spikes.dat"))
+for idx, up, down in enumerate((ups, downs)):
+        up.dump(os.path.join("Resources",("x%d_up.dat" % idx)))
+        down.dump(os.path.join("Resources",("x%d_down.dat" % idx)))
 
 
 ###### Plotting spike trains ###### 
