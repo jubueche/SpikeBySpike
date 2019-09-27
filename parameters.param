@@ -1,6 +1,5 @@
 {
     "training" : {
-        "cutoff": 0.05,
         "penable": false,
         "use_learning" : true,
         "num_iter" : 20,
@@ -21,10 +20,10 @@
         "mu" : 0.02,
         "gamma" : 30.5,
         "omega" : -0.5,
-        "eta" : 1000
+        "eta" : 1000,
+        "cutoff": 0.00
     } ,
     "testing" : {
-        "cutoff": 0.05,
         "penable": false,
         "use_learning" : false,
         "num_iter" : 20,
@@ -45,7 +44,8 @@
         "mu" : 0.02,
         "gamma" : 30.5,
         "omega" : -0.5,
-        "eta" : 1000
+        "eta" : 1000,
+        "cutoff": 0.00
     }
 }
 
