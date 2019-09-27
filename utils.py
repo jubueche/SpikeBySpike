@@ -180,6 +180,9 @@ class Utils:
             errors.append(err_tmp)
         return errors
 
+    def threshold_matrix(self, Omega):
+        return (abs(Omega) >= self.cutoff)*Omega
+
 
     def plot_results(self, x_hat_first, times_first, indices_first, x, x_hat, times, indices, errors, num_spikes, direc_image):
         
