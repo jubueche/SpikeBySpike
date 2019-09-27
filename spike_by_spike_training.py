@@ -348,7 +348,7 @@ if(utils.penable):
     plt.show() 
 
 # Number of weights different from 0
-print(Omega_after)
+Omega_after.dump(os.path.join("DYNAPS/Resources", "Omega_after.dat"))
 n_not_zero = sum(Omega_after.ravel() != 0)
 print(("Number of non zero elements in Omega is %d" % n_not_zero))
 

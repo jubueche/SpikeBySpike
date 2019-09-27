@@ -34,17 +34,17 @@ utils.save_F("Resources/F.png", F)
 x = utils.get_matlab_like_input()
 
 
-ups = []; downs = []; ups_isi = []; downs_isi = []
+ups = []; downs = []
 for i in range(x.shape[0]):
         tmp = utils.signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), x[i,:], utils.threshold, utils.threshold, 0.0001)
         ups.append(np.asarray(tmp[0]))
         downs.append(np.asarray(tmp[1]))
-        tmp_up_isi = utils.spikes_to_isi(tmp[0], np.ones(utils.duration), use_microseconds=True)[0]
-        ups_isi.append(tmp_up_isi)
-        tmp_down_isi = utils.spikes_to_isi(tmp[1], np.ones(utils.duration), use_microseconds=True)[0]
-        downs_isi.append(tmp_down_isi)
-        tmp_up_isi.dump(os.path.join("Resources", ("up_%d_isi.dat" % i)))
-        tmp_down_isi.dump(os.path.join("Resources", ("down_%d_isi.dat" % i)))
+
+ups = np.asarray(ups)
+downs = np.asarray(downs)
+
+ups.dump(os.path.join("Resources", "up_spikes.dat"))
+downs.dump(os.path.join("Resources", "down_spikes.dat"))
 
 
 ###### Plotting spike trains ###### 

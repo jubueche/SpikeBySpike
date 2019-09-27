@@ -2,7 +2,7 @@
     "training" : {
         "penable": false,
         "use_learning" : true,
-        "num_iter" : 15,
+        "num_iter" : 2,
         "N" : 20,
         "n_in" : 2,
         "thresh" : 0.5,
