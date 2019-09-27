@@ -45,6 +45,9 @@ class SBSController():
             print("Init failed: RPyC connection not active!")
             return
         
+                
+        self.spikegen = self.model.get_fpga_modules()[1]
+        
         self.neurons = self.model.get_shadow_state_neurons()
         self.v_neurons = self.vModel.get_neurons()
         self.bias_group = self.model.get_bias_groups()[chip_id*4 + core_id]
@@ -75,6 +78,46 @@ class SBSController():
         self.isi_1_down = np.load("Resources/down_1_isi.dat")
         self.isi_2_up = np.load("Resources/up_2_isi.dat")
         self.isi_2_down = np.load("Resources/down_2_isi.dat")
+        
+        fpga_evts = []
+        
+        for isi in self.isi_1_up:
+            fpga_event = self.c.modules.CtxDynapse.FpgaSpikeEvent()
+            fpga_event.core_mask = 15
+            fpga_event.target_chip = self.chip_id
+            fpga_event.neuron_id = 1
+            fpga_event.isi = int(isi)
+            fpga_evts.append(fpga_event)
+            
+        for isi in self.isi_1_down:
+            fpga_event = self.c.modules.CtxDynapse.FpgaSpikeEvent()
+            fpga_event.core_mask = 15
+            fpga_event.target_chip = self.chip_id
+            fpga_event.neuron_id = 2
+            fpga_event.isi = int(isi)
+            fpga_evts.append(fpga_event)
+            
+        for isi in self.isi_2_up:
+            fpga_event = self.c.modules.CtxDynapse.FpgaSpikeEvent()
+            fpga_event.core_mask = 15
+            fpga_event.target_chip = self.chip_id
+            fpga_event.neuron_id = 3
+            fpga_event.isi = int(isi)
+            fpga_evts.append(fpga_event)
+            
+        for isi in self.isi_2_down:
+            fpga_event = self.c.modules.CtxDynapse.FpgaSpikeEvent()
+            fpga_event.core_mask = 15
+            fpga_event.target_chip = self.chip_id
+            fpga_event.neuron_id = 4
+            fpga_event.isi = int(isi)
+            fpga_evts.append(fpga_event)
+        
+        
+        self.spikegen.set_variable_isi(True)
+        self.spikegen.preload_stimulus([fpga_event])
+        self.spikegen.set_repeat_mode(False)
+
         
     def plot_raster(self):
         pass
