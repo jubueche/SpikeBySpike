@@ -70,9 +70,13 @@ def create_network(F, Omega, utils, x):
     conn_F.weight = F.ravel() # NOTE F has shape (utils.n_in,N), => F_{i,j} connects i-th in-neuron to j-th output
     conn_Omega.weight = Omega.ravel() # NOTE Omega has shape (N,N) so no information is gained here.  We are using the paper version.
 
+    Omega_offline = Omega # The offline version of Omega. Omega is always updated in the learning rule, but a thresholded version is used for the network.
 
     @network_operation(dt=utils.delta_t*ms)
     def update_G(t):
+
+        print(Omega_offline)
+
         current_t = int((t/ms)/utils.delta_t) # in [0,duration)
 
         F_ = np.copy(np.reshape(conn_F.weight, (utils.n_in, utils.N)))
@@ -135,17 +139,18 @@ def create_network(F, Omega, utils, x):
                 #tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(vt_1 + utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,))
                 #tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,)) # DOnt use vt
                 # Use the reconstructed voltage in the update. Use G.v_recon_ since at this point it refers to v(t-1). voltage_reconstructed holds the value of v(t). The update is performed at the bottom.
-                tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(np.reshape(G.v_recon_, (-1,1)) + utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,))
+                # tmp = np.reshape(np.reshape(Omega_[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(np.reshape(G.v_recon_, (-1,1)) + utils.mu*rt_1) + np.reshape(Omega_[:,k], (-1,1))), (-1,)) #! No Omega offline
+                tmp = np.reshape(np.reshape(Omega_offline[:,k], (-1,1)) - utils.eps_omega*(utils.beta*(np.reshape(G.v_recon_, (-1,1)) + utils.mu*rt_1) + np.reshape(Omega_offline[:,k], (-1,1))), (-1,))
                 # tmp1 = Omega_[k,k] - utils.eps_omega*utils.mu #! No single threshold update on DYNAP-SE
-                update_threshold = np.ones(utils.N)*Omega_.diagonal() - utils.eps_omega*utils.mu*0.1
+                update_threshold = np.ones(utils.N)*Omega_offline.diagonal() - utils.eps_omega*utils.mu*0.1
                 tmp[abs(tmp) < utils.cutoff] = 0
-                Omega_[:,k] = tmp
+                Omega_offline[:,k] = tmp
                 #Omega_[k,k] = tmp1 #! No single threshold update on DYNAP-SE
-                np.fill_diagonal(Omega_, update_threshold) # On DYNAPS, can only update all thresholds
+                np.fill_diagonal(Omega_offline, update_threshold) # On DYNAPS, can only update all thresholds
                 
                 # Assign
                 # conn_F.weight = np.copy(np.reshape(F_, (-1,))) #! No F update on DYNAP-SE
-                conn_Omega.weight = np.copy(np.reshape(Omega_, (-1,)))
+                conn_Omega.weight = np.copy(np.reshape(Omega_offline, (-1,))) # ! Need to threshold the offline version here
 
 
         rt = (1-utils.lambbda*utils.dtt)*rt_1 + ot_1
