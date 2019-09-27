@@ -2,7 +2,7 @@
     "training" : {
         "penable": false,
         "use_learning" : true,
-        "num_iter" : 20,
+        "num_iter" : 5,
         "N" : 20,
         "n_in" : 2,
         "thresh" : 0.5,
@@ -17,7 +17,7 @@
         "eps_omega" : 10e-3,
         "alpha" : 0.21,
         "beta" : 1.25,
-        "mu" : 0.02,
+        "mu" : 0.8,
         "gamma" : 30.5,
         "omega" : -0.5,
         "eta" : 1000
