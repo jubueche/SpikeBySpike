@@ -342,7 +342,7 @@ F = F_after
 ########## Plot distribution of weights ##########
 weights = Omega_after.ravel()
 plt.figure(figsize=(10,8))
-plt.hist(weights, 50, normed=1, facecolor='green', alpha=0.75)
+plt.hist(weights, 50, density=True, facecolor='green', alpha=0.75)
 plt.savefig(os.path.join(direc_training, "omega_weight_distribution_post_learning.png"))
 if(utils.penable):
     plt.show() 
