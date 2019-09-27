@@ -1,6 +1,5 @@
 from utils_input import UtilsInput
 import numpy as np
-import matplotlib.pyplot as plt
 from brian2 import *
 import os
 
