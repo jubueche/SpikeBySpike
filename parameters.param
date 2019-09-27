@@ -21,7 +21,7 @@
         "gamma" : 30.5,
         "omega" : -0.5,
         "eta" : 1000,
-        "cutoff": 0.00
+        "cutoff": 0.05
     } ,
     "testing" : {
         "penable": false,

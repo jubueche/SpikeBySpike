@@ -347,6 +347,10 @@ plt.savefig(os.path.join(direc_training, "omega_weight_distribution_post_learnin
 if(utils.penable):
     plt.show() 
 
+# Number of weights different from 0
+print(Omega_after)
+n_not_zero = sum(Omega_after.ravel() != 0)
+print(("Number of non zero elements in Omega is %d" % n_not_zero))
 
 # Save the matrix after training
 utils.save_omega(os.path.join(direc_training, "omega_heat_map_after_training.png"), Omega)
