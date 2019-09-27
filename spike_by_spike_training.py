@@ -320,7 +320,7 @@ log_file.close()
 x = x.T
 errors = np.asarray(errors)
 
-n = 2
+n = 5
 plt.figure(figsize=(10,8))
 for i in range(0,n):
         plt.plot(v_recon[i,:], utils.colors[i], label="Reconstructed voltage")
@@ -354,7 +354,7 @@ Omega_after.dump(os.path.join("DYNAPS/Resources", "Omega_after.dat"))
 utils.save_omega(os.path.join(direc_training, "omega_heat_map_after_training.png"), Omega)
 
 
-num_signals = 5
+num_signals = 2
 
 for k in range(num_signals):
     utils_testing = Utils.from_json(parameters["testing"])
