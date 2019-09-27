@@ -10,9 +10,9 @@ import pyqtgraph.exporters
 
 
 
-class Utils:
+class UtilsInput:
 
-    def __init__(self, duration, delta_t, dtt, eta, n_in, sigma_x):
+    def __init__(self, duration, delta_t, dtt, eta, n_in, sigma_x, threshold):
         
         self.duration = duration
         self.delta_t = delta_t # ms
@@ -21,10 +21,11 @@ class Utils:
         self.time_steps = int(self.duration/self.delta_t)
         self.n_in = n_in
         self.sigma_x = sigma_x
+        self.threshold = threshold
         
     @classmethod
     def from_default(self):
-        return Utils(duration=8000, delta_t=1, dtt=10**-3, eta=1000, n_in=2, sigma_x=1)
+        return UtilsInput(duration=8000, delta_t=1, dtt=10**-3, eta=1000, n_in=2, sigma_x=1, threshold=0.05)
 
 
     def set_duration(self, duration):
@@ -90,11 +91,6 @@ class Utils:
 
     # Spike times in millis
     def spikes_to_isi(self, spike_times, neurons_id, use_microseconds=True):
-        if(use_microseconds):
-            print("Using microseconds. (1e-6s)")
-        else:
-            print("Using 10s of microseconds (1e-5s)")
-
         Signal_isi = []
         for i in range(len(spike_times)):
             if i == 0 :
@@ -134,12 +130,15 @@ class Utils:
 
         for j in range(num_signals):
             ps[j*3+0].plot(y=signals[j,:], pen=pg.mkPen('r', width=1, style=pg.QtCore.Qt.DashLine))
-            ps[j*3+1].plot(x=ups[i], y=np.zeros(len(ups[i])),
+            ps[j*3+1].plot(x=ups[j], y=np.zeros(len(ups[j])),
                                 pen=None, symbol='o', symbolPen=None,
                                 symbolSize=3, symbolBrush=(68, 245, 255))
-            ps[j*3+2].plot(x=downs[i], y=np.zeros(len(downs[i])),
+            ps[j*3+2].plot(x=downs[j], y=np.zeros(len(downs[j])),
                                 pen=None, symbol='o', symbolPen=None,
                                 symbolSize=3, symbolBrush=(68, 245, 255))
+
+        for p in ps:
+            p.setRange(xRange=[0,self.duration])
 
 
         app.exec()
