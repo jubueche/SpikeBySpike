@@ -81,8 +81,6 @@ def create_network(F, Omega, utils, x):
         F_ = np.copy(np.reshape(conn_F.weight, (utils.n_in, utils.N)))
         Omega_ = np.copy(np.reshape(conn_Omega.weight, (utils.N, utils.N)))
 
-        print(Omega_)
-
         ct_1 = np.copy(np.reshape(I.ct_1_, (-1,1)))
         vt_1 = np.copy(np.reshape(G.vt_1, (-1,1)))
         ot_1 = np.copy(np.reshape(G.ot_1, (-1,1)))
@@ -340,6 +338,15 @@ utils.plot_results(x_hat_first, times_first, indices_first, x, x_hat, times, ind
 print("Testing...")
 Omega = Omega_after
 F = F_after
+
+########## Plot distribution of weights ##########
+weights = Omega_after.ravel()
+plt.figure(figsize=(10,8))
+plt.hist(weights, 50, normed=1, facecolor='green', alpha=0.75)
+plt.savefig(os.path.join(direc_training, "omega_weight_distribution_post_learning.png"))
+if(utils.penable):
+    plt.show() 
+
 
 # Save the matrix after training
 utils.save_omega(os.path.join(direc_training, "omega_heat_map_after_training.png"), Omega)
