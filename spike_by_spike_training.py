@@ -320,7 +320,7 @@ log_file.close()
 x = x.T
 errors = np.asarray(errors)
 
-n = 5
+n = 2
 plt.figure(figsize=(10,8))
 for i in range(0,n):
         plt.plot(v_recon[i,:], utils.colors[i], label="Reconstructed voltage")
