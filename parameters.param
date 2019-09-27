@@ -1,5 +1,6 @@
 {
     "training" : {
+        "cutoff": 0.05,
         "penable": false,
         "use_learning" : true,
         "num_iter" : 20,
@@ -23,6 +24,7 @@
         "eta" : 1000
     } ,
     "testing" : {
+        "cutoff": 0.05,
         "penable": false,
         "use_learning" : false,
         "num_iter" : 20,

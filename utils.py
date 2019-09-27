@@ -7,28 +7,29 @@ import sys
 import pyqtgraph.exporters
 from matplotlib.pyplot import *
 
+#! [https://arxiv.org/src/1703.03777v2/anc/SI.pdf]
+
 
 class Utils:
 
     def __init__(self, penable, use_learning, num_iter, N, n_in, thresh, duration, delta_t, dtt, lambbda, sigma_x, sigma_eps_v,
-                        sigma_eps_t, eps_f, eps_omega, alpha, beta, mu, gamma, omega, eta):
+                        sigma_eps_t, eps_f, eps_omega, alpha, beta, mu, gamma, omega, eta, cutoff):
         self.colors = ['m','b','y','r','g']
         self.penable = penable # Enable plotting
         self.use_learning = use_learning
-        self.num_iter = num_iter # TODO How many iterations for training?
+        self.num_iter = num_iter
         self.N = N
         self.n_in = n_in
         self.thresh = thresh
 
         self.duration = duration
         self.delta_t = delta_t # ms
-        # TODO correct (2 lines below)?
         self.dtt = dtt
-        self.lambbda = lambbda # TODO Lambda is 50 s^-1
+        self.lambbda = lambbda
 
         self.lambbda_f = self.lambbda #Only for first experiment
         self.time_steps = int(self.duration/self.delta_t)
-        self.sigma_x = sigma_x # TODO See table 1 in [https://arxiv.org/src/1703.03777v2/anc/SI.pdf]. In the SI it is 2*10^3
+        self.sigma_x = sigma_x
         self.sigma_eps_v = sigma_eps_v # 10**-3
         self.sigma_eps_t = sigma_eps_t
         self.eps_f = eps_f #-4 and -3
@@ -40,7 +41,8 @@ class Utils:
         self.gamma = gamma#0.8 #Initital FF weight. High -> High initial firing -> High number of updates
         self.omega = omega
 
-        self.eta  = eta # TODO In the paper it says time constant 6ms. Does that correspond to sigma(std)=6 ?, 600
+        self.eta  = eta
+        self.cutoff = cutoff
         self.mA_xrT = MovingAverage(shape=(self.n_in,self.N))
         self.mA_rrT = MovingAverage(shape=(self.N,self.N))
         self.mA_r = MovingAverage(shape=(self.N,1))
@@ -49,14 +51,14 @@ class Utils:
     def from_default(self):
         return Utils(penable=True, use_learning=True, num_iter=20, N=20, n_in=2, thresh=0.5, duration=8000, delta_t=1,
                         dtt=10**-3, lambbda=0.02, sigma_x=1, sigma_eps_v=10**-2, sigma_eps_t=10**-2, eps_f=10**-3, eps_omega=10**-2,
-                        alpha=0.21, beta=1.25, mu=0.02, gamma=30.5, omega=-0.5, eta=1000)
+                        alpha=0.21, beta=1.25, mu=0.02, gamma=30.5, omega=-0.5, eta=1000, cutoff=0.05)
 
     @classmethod
     def from_json(self, dict):
         return Utils(penable=dict["penable"],use_learning=dict["use_learning"],num_iter=dict["num_iter"],N=dict["N"],n_in=dict["n_in"],thresh=dict["thresh"],
                             duration=dict["duration"],delta_t=dict["delta_t"],dtt=dict["dtt"],lambbda=dict["lambbda"],sigma_x=dict["sigma_x"],
                             sigma_eps_v=dict["sigma_eps_v"],sigma_eps_t=dict["sigma_eps_t"],eps_f=dict["eps_f"],eps_omega=dict["eps_omega"],
-                            alpha=dict["alpha"],beta=dict["beta"],mu=dict["mu"],gamma=dict["gamma"],omega=dict["omega"],eta=dict["eta"])
+                            alpha=dict["alpha"],beta=dict["beta"],mu=dict["mu"],gamma=dict["gamma"],omega=dict["omega"],eta=dict["eta"], cutoff=cutoff["cutoff"])
 
     def set_duration(self, duration):
         self.duration = duration
