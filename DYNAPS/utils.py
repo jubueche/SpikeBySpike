@@ -3,6 +3,11 @@ from scipy.ndimage import gaussian_filter
 import scipy
 from matplotlib.pyplot import *
 from scipy import interpolate
+from pyqtgraph.Qt import QtGui
+import pyqtgraph as pg
+import sys
+import pyqtgraph.exporters
+
 
 
 class Utils:
@@ -106,3 +111,35 @@ class Utils:
         if(0 in neurons_id):
             neurons_id = neurons_id + 1 
         return (Signal_isi, neurons_id)
+
+    def plot_delta_spike_trains(self, signals, ups, downs):
+        app = QtGui.QApplication.instance()
+        if app is None:
+                app = QtGui.QApplication(sys.argv)
+        else:
+                print('QApplication instance already exists: %s' % str(app))
+
+        pg.setConfigOptions(antialias=True)
+        labelStyle = {'color': '#FFF', 'font-size': '12pt'}
+        win = pg.GraphicsWindow()
+        win.resize(1500, 1500)
+        win.setWindowTitle('Delta converted spike trains')
+
+        num_signals = signals.shape[0]
+        ps = []
+        for i in range(num_signals):
+            ps.append(win.addPlot(title=("Signal x%d" % i))); win.nextRow()
+            ps.append(win.addPlot(title=("Spikes x%d up" % i))); win.nextRow()
+            ps.append(win.addPlot(title=("Spikes x%d down" % i))); win.nextRow()
+
+        for j in range(num_signals):
+            ps[j*3+0].plot(y=signals[j,:], pen=pg.mkPen('r', width=1, style=pg.QtCore.Qt.DashLine))
+            ps[j*3+1].plot(x=ups[i], y=np.zeros(len(ups[i])),
+                                pen=None, symbol='o', symbolPen=None,
+                                symbolSize=3, symbolBrush=(68, 245, 255))
+            ps[j*3+2].plot(x=downs[i], y=np.zeros(len(downs[i])),
+                                pen=None, symbol='o', symbolPen=None,
+                                symbolSize=3, symbolBrush=(68, 245, 255))
+
+
+        app.exec()
