@@ -58,7 +58,7 @@ class Utils:
         return Utils(penable=dict["penable"],use_learning=dict["use_learning"],num_iter=dict["num_iter"],N=dict["N"],n_in=dict["n_in"],thresh=dict["thresh"],
                             duration=dict["duration"],delta_t=dict["delta_t"],dtt=dict["dtt"],lambbda=dict["lambbda"],sigma_x=dict["sigma_x"],
                             sigma_eps_v=dict["sigma_eps_v"],sigma_eps_t=dict["sigma_eps_t"],eps_f=dict["eps_f"],eps_omega=dict["eps_omega"],
-                            alpha=dict["alpha"],beta=dict["beta"],mu=dict["mu"],gamma=dict["gamma"],omega=dict["omega"],eta=dict["eta"], cutoff=cutoff["cutoff"])
+                            alpha=dict["alpha"],beta=dict["beta"],mu=dict["mu"],gamma=dict["gamma"],omega=dict["omega"],eta=dict["eta"], cutoff=dict["cutoff"])
 
     def set_duration(self, duration):
         self.duration = duration
