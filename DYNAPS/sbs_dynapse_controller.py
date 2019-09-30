@@ -8,6 +8,7 @@ from random import sample
 from time import sleep, time
 import operator
 import rpyc
+import itertools
 
 class SBSController():
     """
@@ -55,11 +56,11 @@ class SBSController():
              and n.get_neuron_id() < self.start_neuron + self.num_neurons]
         self.population_ids = [n.get_chip_id()*1024 + n.get_core_id()*256 + n.get_neuron_id() for n in self.population]
 
-        self.dynapse.clear_cam(self.chip_id)
+        """self.dynapse.clear_cam(self.chip_id)
         if(self.debug):
-            print("Finished clearing CAMs")
+            print("Finished clearing CAMs")"""
         
-    @classmethod # TODO Please check if these values make any sense
+    @classmethod
     def from_default(self):
         c = rpyc.classic.connect("localhost", 1300)
         RPYC_TIMEOUT = 300 #defines a higher timeout
@@ -130,6 +131,7 @@ class SBSController():
         self.spikegen.preload_stimulus(fpga_events)
         self.spikegen.set_isi_multiplier(isi_base)
         self.spikegen.set_repeat_mode(repeat_mode)
+
         
     def load_resources(self):
         """
@@ -167,6 +169,25 @@ class SBSController():
         
         # Load spike gen
         self.load_spike_gen(fpga_events=fpga_events, isi_base=self.base_isi, repeat_mode=False)
+
+        # Create the feedforward connections based on the matrices
+        weights = [self.conn_up, self.conn_down]
+        weights = [elem.astype(int).tolist() for w in weights for elem in w] # Create simple list of lists and cast to int
+        
+        vn_list = []; pop_neur_list = []
+        # For every input neuron        
+        for current_vn_idx,weight in enumerate(weights):
+            for current_pop_neuron_idx,w in enumerate(weight):
+                vn_tmp = [self.v_neurons[current_vn_idx] for _ in range(w)]
+                pop_n_tmp = [self.population[current_pop_neuron_idx] for _ in range(w)]
+                vn_list.append(vn_tmp)
+                pop_neur_list.append(pop_n_tmp)
+
+        vn_list = [elem for l in vn_list for elem in l]
+        pop_neur_list = [elem for l in pop_neur_list for elem in l]
+
+        """self.connector.add_connection_from_list(vn_list, pop_neur_list, self.SynTypes.SLOW_EXC)
+        self.model.apply_diff_state()"""
         
         
     
