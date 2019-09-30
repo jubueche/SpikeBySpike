@@ -10,6 +10,8 @@ import operator
 import rpyc
 import itertools
 
+import matplotlib.pyplot as plt
+
 class SBSController():
     """
         Spike By Spike project Dynapse chip controller class
@@ -56,9 +58,8 @@ class SBSController():
              and n.get_neuron_id() < self.start_neuron + self.num_neurons]
         self.population_ids = [n.get_chip_id()*1024 + n.get_core_id()*256 + n.get_neuron_id() for n in self.population]
 
-        """self.dynapse.clear_cam(self.chip_id)
         if(self.debug):
-            print("Finished clearing CAMs")"""
+            print("Finished clearing CAMs")
         
     @classmethod
     def from_default(self):
@@ -68,8 +69,33 @@ class SBSController():
 
         return SBSController(start_neuron=1, chip_id=1, c=c, core_id=0, debug=True)
         
-    def run_single_trial(self):
-        pass
+    def run_single_trial(self, plot_raster=False):
+        """
+        Runs a single input iteration and records the activity in the population.
+        Optionally plots the recorded raster.
+        
+        """
+        self.evt_filter = self.c.modules.CtxDynapse.BufferedEventFilter(self.model, self.population_ids)
+        self.c.modules.CtxDynapse.dynapse.reset_timestamp()
+        evts = self.evt_filter.get_events()
+        self.spikegen.start()
+        print("Running the trial...")
+        sleep(self.spike_times[-1,1]/1e+6)
+        evts = self.evt_filter.get_events()
+        self.spikegen.stop()
+        print("Trial finished")
+        print("Binning the spikes")
+        
+        recorded_events = []
+        
+        if len(evts) != 0:
+            for evt in evts:
+                recorded_events.append([evt.neuron.get_id(), evt.timestamp])
+                
+        self.recorded_events = np.array(recorded_events)
+        
+        if plot_raster == True:
+            self.plot_raster()
     
     
     def get_fpga_events(self, fpga_isi, fpga_nrn_ids):
@@ -159,10 +185,10 @@ class SBSController():
                     self.conn_down.append(np.load(("Resources/conn_x%d_down.dat" % i), allow_pickle=True))
         
 
-        spike_times = self.compile_preloaded_stimulus(dummy_neuron_id = 255)
+        self.spike_times = self.compile_preloaded_stimulus(dummy_neuron_id = 255)
         
         # Convert to ISI
-        (signal_isi, neuron_ids) = self.spikes_to_isi(spike_times=spike_times[:,1], neurons_id=spike_times[:,0], use_microseconds=False)
+        (signal_isi, neuron_ids) = self.spikes_to_isi(spike_times=self.spike_times[:,1], neurons_id=self.spike_times[:,0], use_microseconds=False)
 
         # Get the FPGA events
         fpga_events = self.get_fpga_events(signal_isi, neuron_ids)
@@ -218,4 +244,6 @@ class SBSController():
             print(w)
         
     def plot_raster(self):
-        pass
+        
+        plt.plot(self.recorded_events[:,1], self.recorded_events[:,0], 'o')
+        
