@@ -1,17 +1,13 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Thu Sep 26 22:11:04 2019
 
 @author: dzenn
 """
-
 import numpy as np
 from random import sample
-
 from time import sleep, time
-
-
+import operator
+import rpyc
 
 class SBSController():
     """
@@ -19,7 +15,7 @@ class SBSController():
         
     """
     
-    def __init__(self, start_neuron, chip_id, c, core_id, debug = False):
+    def __init__(self, start_neuron, chip_id, c, core_id, debug = False, base_isi=90, num_signals=2):
         
         self.start_neuron = start_neuron
         self.num_neurons = 20
@@ -27,6 +23,7 @@ class SBSController():
         self.core_id = core_id
         self.debug = debug
         self.c = c
+        self.base_isi = base_isi
         
         try:
             print("rpyc ok")
@@ -34,18 +31,19 @@ class SBSController():
             print("model ok")
             self.vModel = self.c.modules.CtxDynapse.VirtualModel()
             print("vModel ok")
-            self.connector = c.modules.NeuronNeuronConnector.DynapseConnector()
-
-            print("connector ok")
             self.SynTypes = c.modules.CtxDynapse.DynapseCamType
             print("SynTypes ok")
             self.dynapse = c.modules.CtxDynapse.dynapse
             print("dynapse ok")
+            self.connector = c.modules.NeuronNeuronConnector.DynapseConnector()
+            print("connector ok")
+            self.fpga_spike_event = c.modules.CtxDynapse.FpgaSpikeEvent
+            print("Spike event ok")
         except AttributeError:
             print("Init failed: RPyC connection not active!")
             return
         
-                
+        self.num_signals = num_signals        
         self.spikegen = self.model.get_fpga_modules()[1]
         
         self.neurons = self.model.get_shadow_state_neurons()
@@ -63,53 +61,117 @@ class SBSController():
              and n.get_neuron_id() < self.start_neuron + self.num_neurons]
         self.population_ids = [n.get_chip_id()*1024 + n.get_core_id()*256 + n.get_neuron_id() for n in self.population]
         
+    @classmethod # TODO Please check if these values make any sense
+    def from_default(self):
+        c = rpyc.classic.connect("localhost", 1300)
+        RPYC_TIMEOUT = 300 #defines a higher timeout
+        c._config["sync_request_timeout"] = RPYC_TIMEOUT  # Set timeout to higher level
+
+        return SBSController(start_neuron=1, chip_id=1, c=c, core_id=1, debug=False)
         
     def run_single_trial(self):
-        
         pass
+    
+    
+    def get_fpga_events(self, fpga_isi, fpga_nrn_ids):
+        """ This function takes a list of events and neuron ids and returns an 
+        object of FpgaSpikeEvent class.
+        Args:
+            fpga_isi     (list): list of isi 
+            fpga_nrn_ids (list): list of neuron ids
+        Returns:
+            fpga_event   (FpgaSpikeEvent): ctxctl object
+        """
+        fpga_events = []
+        for idx_isi, isi in enumerate(fpga_isi):
+            fpga_event = self.fpga_spike_event()
+            fpga_event.core_mask = 15
+            fpga_event.target_chip = self.chip_id
+            fpga_event.neuron_id = fpga_nrn_ids[idx_isi]
+            fpga_event.isi = isi
+            fpga_events.append(fpga_event)
+        
+        return fpga_events
+    
+    
+    def spikes_to_isi(self, spike_times, neurons_id, use_microseconds=False):
+        """ Function for coverting an array of spike times and array of corresponding
+        neurons to inter spike intervals.
+        Args:
+            spike_times      (list): list of times. Either in milliseconds or microseconds
+            neurons_id       (list): list of neuron ids. Should have same length as spike_times.
+            use_microseconds (Bool): If set to True, will assume that spike_times are in millis.
+                                     If set to False, will assume that spike_times are in micro sec.
+        Returns:
+            (signal_isi, neurons_id) (Tuple of lists): The signal ISI's and the corresponding neuron ids.
+        """
+        signal_isi = []
+        for i in range(len(spike_times)):
+            if i == 0 :
+                signal_isi.append(spike_times[0])
+            else:
+                signal_isi.append(spike_times[i] - spike_times[i-1])
+        signal_isi = np.asarray(signal_isi)
+        if(use_microseconds):
+            signal_isi = signal_isi * 1e3
+        else: # Already in microseconds
+            signal_isi = signal_isi
+
+        # Avoid using neuron zero (because all neurons are connected to it)
+        if(0 in neurons_id):
+            neurons_id = neurons_id + 1 
+        return (signal_isi, neurons_id)
+    
+    def load_spike_gen(self, fpga_events, isi_base, repeat_mode=False):
+        """ This loads an FpgaSpikeEvent in the Spike Generator.
+        Args:
+            fpga_events (FpgaSpikeEvent):
+            isibase     (isibase):
+        """ 
+        self.spikegen.set_variable_isi(True)
+        self.spikegen.preload_stimulus(fpga_events)
+        self.spikegen.set_isi_multiplier(isi_base)
+        self.spikegen.set_repeat_mode(repeat_mode)
         
     def load_resources(self):
         """
-            Loading all resource files: input weights and preloaded spiketrains
+            1. Loading all resource files: input weights and preloaded spiketrains.
+            2. Injecting spikes of a dummy neuron to account for max. ISI.
+            3. Converting to ISI's
+            4. Generating FPGA events
+            5. Loading Spike Generator
         """
         
-        self.input_weights = np.load("Resources/F.dat")
-        self.spikes_0_up = np.load("Resources/x0_up.dat")
-        self.spikes_0_down = np.load("Resources/x0_down.dat")
-        self.spikes_1_up = np.load("Resources/x1_up.dat")
-        self.spikes_1_down = np.load("Resources/x1_down.dat")
+        self.spikes_up = []
+        self.spikes_down = []
+            
+        for i in range(self.num_signals):
+            self.spikes_up.append(np.load(("Resources/x%d_up.dat" % i), allow_pickle=True))
+            self.spikes_down.append(np.load(("Resources/x%d_down.dat" % i), allow_pickle=True))
         
-        fpga_evts = self.compile_preloaded_stimulus(dummy_neuron_id = 255)
+        spike_times = self.compile_preloaded_stimulus(dummy_neuron_id = 255)
         
-        ##TODO: Convert timestamps to ISI
+        # Convert to ISI
+        (signal_isi, neuron_ids) = self.spikes_to_isi(spike_times=spike_times[:,1], neurons_id=spike_times[:,0], use_microseconds=False)
+
+        # Get the FPGA events
+        fpga_events = self.get_fpga_events(signal_isi, neuron_ids)
+        
+        # Load spike gen
+        self.load_spike_gen(fpga_events=fpga_events, isi_base=self.base_isi, repeat_mode=False)
         
         
-#        for isi in self.isi_1_up:
-#            fpga_event = self.c.modules.CtxDynapse.FpgaSpikeEvent()
-#            fpga_event.core_mask = 15
-#            fpga_event.target_chip = self.chip_id
-#            fpga_event.neuron_id = 1
-#            fpga_event.isi = int(isi)
-#            fpga_evts.append(fpga_event)
-#        
-#        
-#        self.spikegen.set_variable_isi(True)
-#        self.spikegen.preload_stimulus([fpga_event])
-#        self.spikegen.set_repeat_mode(False)
     
     def compile_preloaded_stimulus(self, dummy_neuron_id = 255):
         
         output_events = []
-        for timestamp in self.spikes_0_up:
-            output_events.append([1, int(timestamp*1000)])
-        for timestamp in self.spikes_0_down:
-            output_events.append([2, int(timestamp*1000)])
-        for timestamp in self.spikes_1_up:
-            output_events.append([3, int(timestamp*1000)])
-        for timestamp in self.spikes_1_down:
-            output_events.append([4, int(timestamp*1000)])
-            
-        output_events = output_events[output_events[:,1].argsort()]
+        for i in range(self.num_signals):
+            for timestamp in self.spikes_up[i]:
+                output_events.append([i+1, int(timestamp*1000)])
+            for timestamp in self.spikes_down[i]:
+                output_events.append([i+2, int(timestamp*1000)])
+          
+        output_events.sort(key=operator.itemgetter(1))
         output_events = np.insert(output_events, 0, [dummy_neuron_id,0], axis = 0)
         
         tmp_id = 1
@@ -119,6 +181,11 @@ class SBSController():
             tmp_id += 1
             
         return output_events
+    
+    def set_connections_F(self):
+        
+        # Number of neurons: 2*number of signals
+        pass
         
     def plot_raster(self):
         pass
