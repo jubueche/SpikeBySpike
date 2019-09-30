@@ -27,18 +27,12 @@ class SBSController():
         
         try:
             print("rpyc ok")
-            self.model = c.modules.CtxDynapse.model
-            print("model ok")
-            self.vModel = self.c.modules.CtxDynapse.VirtualModel()
-            print("vModel ok")
-            self.SynTypes = c.modules.CtxDynapse.DynapseCamType
-            print("SynTypes ok")
-            self.dynapse = c.modules.CtxDynapse.dynapse
-            print("dynapse ok")
-            self.connector = c.modules.NeuronNeuronConnector.DynapseConnector()
-            print("connector ok")
-            self.fpga_spike_event = c.modules.CtxDynapse.FpgaSpikeEvent
-            print("Spike event ok")
+            self.model = c.modules.CtxDynapse.model; print("model ok")
+            self.vModel = self.c.modules.CtxDynapse.VirtualModel(); print("vModel ok")
+            self.SynTypes = c.modules.CtxDynapse.DynapseCamType; print("SynTypes ok")
+            self.dynapse = c.modules.CtxDynapse.dynapse; print("dynapse ok")
+            self.connector = c.modules.NeuronNeuronConnector.DynapseConnector(); print("connector ok")
+            self.fpga_spike_event = c.modules.CtxDynapse.FpgaSpikeEvent; print("Spike event ok")
         except AttributeError:
             print("Init failed: RPyC connection not active!")
             return
@@ -60,6 +54,10 @@ class SBSController():
              and n.get_neuron_id() >= self.start_neuron
              and n.get_neuron_id() < self.start_neuron + self.num_neurons]
         self.population_ids = [n.get_chip_id()*1024 + n.get_core_id()*256 + n.get_neuron_id() for n in self.population]
+
+        self.dynapse.clear_cam(self.chip_id)
+        if(self.debug):
+            print("Finished clearing CAMs")
         
     @classmethod # TODO Please check if these values make any sense
     def from_default(self):
@@ -67,7 +65,7 @@ class SBSController():
         RPYC_TIMEOUT = 300 #defines a higher timeout
         c._config["sync_request_timeout"] = RPYC_TIMEOUT  # Set timeout to higher level
 
-        return SBSController(start_neuron=1, chip_id=1, c=c, core_id=1, debug=False)
+        return SBSController(start_neuron=1, chip_id=1, c=c, core_id=0, debug=True)
         
     def run_single_trial(self):
         pass
@@ -144,11 +142,21 @@ class SBSController():
         
         self.spikes_up = []
         self.spikes_down = []
-            
+
         for i in range(self.num_signals):
-            self.spikes_up.append(np.load(("Resources/x%d_up.dat" % i), allow_pickle=True))
-            self.spikes_down.append(np.load(("Resources/x%d_down.dat" % i), allow_pickle=True))
+                    self.spikes_up.append(np.load(("Resources/x%d_up.dat" % i), allow_pickle=True))
+                    self.spikes_down.append(np.load(("Resources/x%d_down.dat" % i), allow_pickle=True))
+                
+
+        # conn_up[i] corresponds to the weight of the connections from neuron i to all 20 neurons
+        self.conn_up = []
+        self.conn_down = []
+
+        for i in range(self.num_signals):
+                    self.conn_up.append(np.load(("Resources/conn_x%d_up.dat" % i), allow_pickle=True))
+                    self.conn_down.append(np.load(("Resources/conn_x%d_down.dat" % i), allow_pickle=True))
         
+
         spike_times = self.compile_preloaded_stimulus(dummy_neuron_id = 255)
         
         # Convert to ISI
@@ -185,7 +193,8 @@ class SBSController():
     def set_connections_F(self):
         
         # Number of neurons: 2*number of signals
-        pass
+        for w in self.conn_down:
+            print(w)
         
     def plot_raster(self):
         pass

@@ -24,8 +24,8 @@ for i in range(0,F.shape[0]):
         conn_x_down.append(tmp_down)  
         
 for i in range(F.shape[0]):
-        conn_x_high[i].dump(os.path.join("Resources", ("x%d_up.dat" % i)))
-        conn_x_down[i].dump(os.path.join("Resources", ("x%d_down.dat" % i)))
+        conn_x_high[i].dump(os.path.join("Resources", ("conn_x%d_up.dat" % i)))
+        conn_x_down[i].dump(os.path.join("Resources", ("conn_x%d_down.dat" % i)))
 
 # Show a heat map of F
 utils.save_F("Resources/F.png", F)
