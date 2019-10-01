@@ -100,7 +100,7 @@ def create_network(F, Omega, utils, x):
         if(current_t == 0):
             vt = 0.166*np.reshape(np.asarray(np.random.randn(utils.N)), (-1,1))
         else:
-            vt = ((1-utils.lambbda*utils.dtt)*vt_1 + np.matmul(F_.T, ct_1) + np.matmul(Omega_, ot_1) + np.reshape(eps_v[:, current_t], (-1,1)))
+            vt = ((1-utils.lambbda*utils.dtt)*vt_1 + utils.dtt*np.matmul(F_.T, ct_1) + np.matmul(Omega_, ot_1) + np.reshape(eps_v[:, current_t], (-1,1)))
 
         ot = np.zeros(shape=ot_1.shape)
         
