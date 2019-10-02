@@ -6,7 +6,7 @@ import os
 import json
 from plotting import *
 
-TRAINING = True
+TRAINING = False
 
 ########## Read parameter file #########
 
@@ -22,7 +22,7 @@ else:
 
 ######### Create save folder and resources folder ##########
 
-resources = os.path.join(os.getcwd(), "Resources")
+resources = os.path.join(os.getcwd(), "DYNAPS/Resources")
 if saveFolder:
     direc = os.path.join(os.getcwd(), saveFolder)
 else:
