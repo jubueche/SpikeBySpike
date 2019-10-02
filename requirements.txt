@@ -12,7 +12,6 @@ MarkupSafe==1.1.1
 matplotlib==3.1.1
 numpy==1.17.2
 parameters==0.2.1
-pkg-resources==0.0.0
 pyparsing==2.4.2
 PyQt5==5.13.1
 PyQt5-sip==4.19.19
