@@ -1,16 +1,19 @@
-from utils_input import UtilsInput
+from helper import *
 import numpy as np
-from brian2 import *
 import os
+import json
+import matplotlib.pyplot as plt
 
-seed(43)
-penable = False
-utils = UtilsInput.from_default()
+duration = 1000
+
+with open(os.path.join(os.getcwd(), "../parameters.param"), 'r') as f:
+        parameters = json.load(f)
+
 
 if(not os.path.isdir(os.path.join(os.getcwd(), "Resources"))):
-        os.mkdir(os.path.join(os.getcwd(), "Resources"))
+        SystemError("Error: No Resource folder found.")
 
-F = np.load("Resources/F.dat", allow_pickle=True)
+F = np.load("Resources/F_after.dat", allow_pickle=True)
 
 conn_x_high = []
 conn_x_down = []
@@ -27,16 +30,14 @@ for i in range(F.shape[0]):
         conn_x_high[i].dump(os.path.join("Resources", ("conn_x%d_up.dat" % i)))
         conn_x_down[i].dump(os.path.join("Resources", ("conn_x%d_down.dat" % i)))
 
-# Show a heat map of F
-utils.save_F("Resources/F.png", F)
 
 # Get the signal
-x = utils.get_matlab_like_input()
+x = get_input(A=parameters["A"], Nx=parameters["Nx"], dt=parameters["dt"], lam=parameters["lam"], duration=duration)
 
-
+threshold = 0.5
 ups = []; downs = []
 for i in range(x.shape[0]):
-        tmp = utils.signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), x[i,:], utils.threshold, utils.threshold, 0.0001)
+        tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), x[i,:], threshold, threshold, 0.0001)
         ups.append(np.asarray(tmp[0]))
         downs.append(np.asarray(tmp[1]))
 
@@ -49,5 +50,30 @@ for idx, (up, down) in enumerate((ups, downs)):
 
 
 ###### Plotting spike trains ###### 
-if(penable):
-        utils.plot_delta_spike_trains(x, ups, downs)
+plt.figure(figsize=(12, 12))
+
+plt.subplot(611)
+plt.title("Signal 1")
+plt.plot(x[0,:], c='r')
+plt.xlim((0,duration))
+plt.subplot(612)
+plt.plot(ups[0], np.zeros(len(ups[0])), 'o', c='k', markersize=1)
+plt.xlim((0,duration))
+plt.subplot(613)
+plt.plot(downs[0], np.zeros(len(downs[0])), 'o', c='k', markersize=1)
+plt.xlim((0,duration))
+
+plt.subplot(614)
+plt.title("Signal 2")
+plt.plot(x[1,:], c='r')
+plt.xlim((0,duration))
+plt.subplot(615)
+plt.plot(ups[1], np.zeros(len(ups[1])), 'o', c='k', markersize=1)
+plt.xlim((0,duration))
+plt.subplot(616)
+plt.plot(downs[1], np.zeros(len(downs[1])), 'o', c='k', markersize=1)
+plt.xlim((0,duration))
+
+plt.tight_layout()
+plt.savefig("Resources/signal_transformation.png")
+plt.show()
