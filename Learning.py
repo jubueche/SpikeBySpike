@@ -17,7 +17,7 @@ def Learning(utils, F, C, F_spikes):
     Fs = np.zeros([utils.T, utils.Nx, utils.Nneuron]) # Store the FF weights over the course of training
 
     #! julianb
-    Fs_spikes = np.zeros([utils.T, 2*utils.Nx, 2*utils.Nneuron])
+    Fs_spikes = np.zeros([utils.T, 2*utils.Nx, utils.Nneuron])
 
     V = np.zeros((utils.Nneuron, 1))
     #! julianb
