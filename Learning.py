@@ -62,6 +62,7 @@ def Learning(utils, F, C, F_spikes):
         # I = (1-lam*dt)*I + dt*F_spikes^T*Input_spikes + O*C[:,k] + 0.001*randn(NNeuron)
         I = (1-utils.R*utils.dt)*I + utils.dt*np.matmul(F_spikes.T, Input_spikes[:,(i % utils.Ntime)].reshape((-1,1))) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
         V = (1-utils.dt)*V + utils.dt*utils.R*I
+        V[V >= utils.Thresh] = V[V >= utils.Thresh] - utils.Thresh*np.ones(len(V[V >= utils.Thresh]))
         
         #V = (1-utils.lam*utils.dt)*V + utils.dt*np.matmul(F.T, Input[:,(i % utils.Ntime)].reshape((-1,1))) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
 
