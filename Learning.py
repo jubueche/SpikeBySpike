@@ -49,7 +49,7 @@ def Learning(utils, F, C, F_spikes):
             #! julianb
             # Transfer input to spike domain
             (ups, downs) = utils.continous_to_spikes(Input)
-            Input_spikes = ups_downs_to_O(ups, downs)
+            Input_spikes = ups_downs_to_O(ups, downs, utils.Ntimes)
 
         # I = (1-lam*dt)*I + dt*F_spikes^T*Input_spikes + O*C[:,k] + 0.001*randn(NNeuron)
             

@@ -57,8 +57,8 @@ def get_input(A, Nx, TimeL, w):
         InputL[d,:] = np.convolve(InputL[d,:], w, 'same')
     return InputL
 
-def ups_downs_to_O(ups, downs):
-    Input_spikes = np.zeros((2*len(ups), utils.Ntime))
+def ups_downs_to_O(ups, downs, Ntime):
+    Input_spikes = np.zeros((2*len(ups), Ntime))
     for i in range(len(ups)):
         Input_spikes[i,np.asarray(ups[i], dtype=int)] = 1
         Input_spikes[i+len(ups), np.asarray(downs[i], dtype=int)] = 1
