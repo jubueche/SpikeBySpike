@@ -15,4 +15,6 @@ This will run the learning process and store important files in a local ```Resou
 
 6) (With Sumatra) Sumatra makes a new commit to the repository. If you are not authorized to commit to this repository, please fork this repository. Execute ```$ smt init SpikeBySpike```.
 
-7) After the ```.smt``` folder was created you can start an experiment by executing ```python3 Start.py parameters.param```.
+7) Execute ```$ smt configure --executable=python3 --main=main.py```
+
+8) After the ```.smt``` folder was created you can start an experiment by executing ```python3 Start.py parameters.param```.
