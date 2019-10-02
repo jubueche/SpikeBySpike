@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from Utils import my_max
+from Utils import my_max, ups_downs_to_O
 from runnet import runnet
 
 def Learning(utils, F, C, F_spikes):
