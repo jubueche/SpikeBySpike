@@ -6,7 +6,7 @@ from helper import signal_to_spike_refractory
 
 class Utils:
 
-    def __init__(self, Nneuron, Nx, lam, dt, epsr, epsf, alpha, beta, mu, gamma, Thresh, Nit, Ntime, A, sigma, delta_modulator_threshold):
+    def __init__(self, Nneuron, Nx, lam, dt, epsr, epsf, alpha, beta, mu, gamma, Thresh, Nit, Ntime, A, sigma, delta_modulator_threshold, R):
         self.Nneuron = Nneuron
         self.Nx = Nx
         self.lam = lam
@@ -24,6 +24,7 @@ class Utils:
         self.sigma = sigma
         self.T = int(np.floor(np.log(self.Nit*self.Ntime)/np.log(2)))
         self.delta_modulator_threshold = delta_modulator_threshold
+        self.R = R
 
 
     @classmethod
@@ -31,7 +32,8 @@ class Utils:
         return Utils(Nneuron=dict["Nneuron"], Nx=dict["Nx"], lam=dict["lam"], dt=dict["dt"],
                 epsr=dict["epsr"], epsf=dict["epsf"], alpha=dict["alpha"], beta=dict["beta"],
                 mu=dict["mu"], gamma=dict["gamma"], Thresh=dict["Thresh"], Nit=dict["Nit"],
-                Ntime=dict["Ntime"], A=dict["A"], sigma=dict["sigma"], delta_modulator_threshold=dict["delta_modulator_threshold"])
+                Ntime=dict["Ntime"], A=dict["A"], sigma=dict["sigma"],
+                delta_modulator_threshold=dict["delta_modulator_threshold"], R=dict["R"])
 
     def continous_to_spikes(self, x):
         ups = []; downs = []

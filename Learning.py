@@ -3,11 +3,13 @@ import matplotlib.pyplot as plt
 from Utils import my_max, ups_downs_to_O
 from runnet import runnet
 
+#! julianb, sig
 def Learning(utils, F, C, F_spikes):
 
     TotTime = utils.Nit*utils.Ntime
 
     Fi = np.copy(F)
+    #! julianb
     Fi_spikes = np.copy(F_spikes)
     Ci = np.copy(C)
 
@@ -15,6 +17,8 @@ def Learning(utils, F, C, F_spikes):
     Fs = np.zeros([utils.T, utils.Nx, utils.Nneuron]) # Store the FF weights over the course of training
 
     V = np.zeros((utils.Nneuron, 1))
+    #! julianb
+    I = np.zeros((utils.Nneuron, 1))
     O = 0
     k = 0 #! Indexing starts with 0
     r0 = np.zeros((utils.Nneuron, 1))
@@ -51,10 +55,12 @@ def Learning(utils, F, C, F_spikes):
             (ups, downs) = utils.continous_to_spikes(Input)
             Input_spikes = ups_downs_to_O(ups, downs, utils.Ntime)
 
+        #! julianb
         # I = (1-lam*dt)*I + dt*F_spikes^T*Input_spikes + O*C[:,k] + 0.001*randn(NNeuron)
-            
+        I = (1-utils.lam*utils.dt)*I + utils.dt*np.matmul(F_spikes.T, Input_spikes[:,(i % utils.Ntime)].reshape((-1,1))) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
+        V = (1-utils.dt)*V + utils.dt*utils.R*I
 
-        V = (1-utils.lam*utils.dt)*V + utils.dt*np.matmul(F.T, Input[:,(i % utils.Ntime)].reshape((-1,1))) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
+        # V = (1-utils.lam*utils.dt)*V + utils.dt*np.matmul(F.T, Input[:,(i % utils.Ntime)].reshape((-1,1))) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
         x = (1-utils.lam*utils.dt)*x + utils.dt*Input[:, (i % utils.Ntime)].reshape((-1,1)) #! Removed (i % Ntime)+1 the +1 for indexing
 
         (m, k) = my_max(V - utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)) # Returns maximum and argmax

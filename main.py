@@ -40,9 +40,11 @@ utils = Utils.from_json(parameters)
 if(TRAINING):
     # Initial FF matrix is sampled from a standard normal distribution
     F_initial = 0.5*np.random.randn(utils.Nx, utils.Nneuron)
+    #! julianb
     F_initial_spikes = 0.5*np.random.randn(2*utils.Nx, utils.Nneuron)
     # FF matrix is normalized
     F_initial = utils.gamma*np.divide(F_initial, np.sqrt(np.matmul(np.ones((utils.Nx,1)), np.sum(F_initial**2, axis=0).reshape((1,utils.Nneuron)))))
+    #! julianb
     F_initial_spikes = utils.gamma*np.divide(F_initial_spikes, np.sqrt(np.matmul(np.ones((2*utils.Nx,1)), np.sum(F_initial_spikes**2, axis=0).reshape((1,utils.Nneuron)))))
     
     # Initial recurrent weights have small scales, except for the resets
