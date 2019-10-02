@@ -6,7 +6,8 @@ import os
 
 def runnet(dt, lam, F, Input, C, Nneuron, Ntime, Thresh):
 
-    with open(os.path.join(os.getcwd(), "/parameters.param"), 'r') as f:
+    print(os.getcwd())
+    with open(os.path.join(os.getcwd(), "parameters.param"), 'r') as f:
             parameters = json.load(f)
 
     r0 = np.zeros((Nneuron, Ntime))
