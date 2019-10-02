@@ -77,3 +77,6 @@ plt.xlim((0,duration))
 plt.tight_layout()
 plt.savefig("Resources/signal_transformation.png")
 plt.show()
+
+
+########## How does the spike train look when we run it on the initial matrix? ##########

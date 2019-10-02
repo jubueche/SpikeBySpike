@@ -252,4 +252,5 @@ class SBSController():
     def plot_raster(self):
         
         plt.plot(self.recorded_events[:,1], self.recorded_events[:,0], 'o')
+        plt.show()
         

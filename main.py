@@ -43,7 +43,12 @@ if(TRAINING):
     # FF matrix is normalized
     F_initial = utils.gamma*np.divide(F_initial, np.sqrt(np.matmul(np.ones((utils.Nx,1)), np.sum(F_initial**2, axis=0).reshape((1,utils.Nneuron)))))
     # Initial recurrent weights have small scales, except for the resets
-    C_initial = -0.2*np.random.rand(utils.Nneuron, utils.Nneuron)-0.5*np.eye(utils.Nneuron)
+    
+    #! Uncomment for true initialization
+    #C_initial = -0.2*np.random.rand(utils.Nneuron, utils.Nneuron)-0.5*np.eye(utils.Nneuron)
+
+    #! Added by julianb
+    C_initial = -utils.Thresh*np.eye(utils.Nneuron)
 
     results = Learning(utils, F_initial, C_initial)
 
