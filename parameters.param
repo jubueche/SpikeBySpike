@@ -14,6 +14,6 @@
     "gamma" : 1,
     "sigma" : 30,
     "A" : 2000,
-    "delta_modulator_threshold": 20,
-    "R": 1
+    "delta_modulator_threshold": 10,
+    "R": 1000
 }

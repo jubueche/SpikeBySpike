@@ -45,7 +45,7 @@ if(TRAINING):
     # FF matrix is normalized
     F_initial = utils.gamma*np.divide(F_initial, np.sqrt(np.matmul(np.ones((utils.Nx,1)), np.sum(F_initial**2, axis=0).reshape((1,utils.Nneuron)))))
     #! julianb
-    F_initial_spikes = utils.gamma*np.divide(F_initial_spikes, np.sqrt(np.matmul(np.ones((2*utils.Nx,1)), np.sum(F_initial_spikes**2, axis=0).reshape((1,utils.Nneuron)))))
+    F_initial_spikes = 10000*utils.gamma*np.divide(F_initial_spikes, np.sqrt(np.matmul(np.ones((2*utils.Nx,1)), np.sum(F_initial_spikes**2, axis=0).reshape((1,utils.Nneuron)))))
     
     # Initial recurrent weights have small scales, except for the resets
     #! Uncomment for true initialization
