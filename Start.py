@@ -42,7 +42,7 @@ else:
 start_time = time.time()
 params = hf.folders_setup(params, smt_record)
 # Run simulation
-call([sys.executable, 'spike_by_spike_training.py', params['saveFolder'], parameter_file])
+call([sys.executable, 'main.py', params['saveFolder'], parameter_file])
 
 
 if not is_test:
