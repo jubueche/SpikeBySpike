@@ -52,6 +52,8 @@ class SBSController():
         self.max_fpga_len = 2**ADDR_NUM_BITS-1
         self.max_isi = 2**ISI_NUM_BITS-1 
         
+        self.input_population = [self.v_neurons[idx] for idx in range(1, num_signals*2+1)]
+        
         self.population = [n for n in self.neurons if n.get_chip_id()==self.chip_id
              and n.get_core_id()==self.core_id
              and n.get_neuron_id() >= self.start_neuron
@@ -59,7 +61,11 @@ class SBSController():
         self.population_ids = [n.get_chip_id()*1024 + n.get_core_id()*256 + n.get_neuron_id() for n in self.population]
 
         if(self.debug):
+            print("Clearing CAMs...")            
+        self.c.modules.CtxDynapse.dynapse.clear_cam(self.chip_id)
+        if (self.debug):
             print("Finished clearing CAMs")
+        
         
     @classmethod
     def from_default(self):
@@ -204,7 +210,7 @@ class SBSController():
         # For every input neuron        
         for current_vn_idx,weight in enumerate(weights):
             for current_pop_neuron_idx,w in enumerate(weight):
-                vn_tmp = [self.v_neurons[current_vn_idx] for _ in range(w)]
+                vn_tmp = [self.input_population[current_vn_idx] for _ in range(w)]
                 pop_n_tmp = [self.population[current_pop_neuron_idx] for _ in range(w)]
                 vn_list.append(vn_tmp)
                 pop_neur_list.append(pop_n_tmp)
@@ -212,8 +218,8 @@ class SBSController():
         vn_list = [elem for l in vn_list for elem in l]
         pop_neur_list = [elem for l in pop_neur_list for elem in l]
 
-        """self.connector.add_connection_from_list(vn_list, pop_neur_list, self.SynTypes.SLOW_EXC)
-        self.model.apply_diff_state()"""
+        self.connector.add_connection_from_list(vn_list, pop_neur_list, [self.SynTypes.SLOW_EXC])
+        self.model.apply_diff_state()
         
         
     
