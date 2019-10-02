@@ -3,11 +3,12 @@ import matplotlib.pyplot as plt
 from Utils import my_max
 from runnet import runnet
 
-def Learning(utils, F, C):
+def Learning(utils, F, C, F_spikes):
 
     TotTime = utils.Nit*utils.Ntime
 
     Fi = np.copy(F)
+    Fi_spikes = np.copy(F_spikes)
     Ci = np.copy(C)
 
     Cs = np.zeros([utils.T, utils.Nneuron, utils.Nneuron]) # Store the recurrent weights over the course of training
@@ -45,6 +46,13 @@ def Learning(utils, F, C):
             for d in range(utils.Nx):
                 Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
 
+            #! julianb
+            # Transfer input to spike domain
+            (ups, downs) = utils.continous_to_spikes(Input)
+            Input_spikes = ups_downs_to_O(ups, downs)
+
+        # I = (1-lam*dt)*I + dt*F_spikes^T*Input_spikes + O*C[:,k] + 0.001*randn(NNeuron)
+            
 
         V = (1-utils.lam*utils.dt)*V + utils.dt*np.matmul(F.T, Input[:,(i % utils.Ntime)].reshape((-1,1))) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
         x = (1-utils.lam*utils.dt)*x + utils.dt*Input[:, (i % utils.Ntime)].reshape((-1,1)) #! Removed (i % Ntime)+1 the +1 for indexing
@@ -53,7 +61,7 @@ def Learning(utils, F, C):
 
         if (m >= 0): # We have a spike
             O = 1
-            F[:,k] = (F[:,k].reshape((-1,1)) + utils.epsf*(utils.alpha*x - F[:,k].reshape((-1,1)))).ravel()
+            # F[:,k] = (F[:,k].reshape((-1,1)) + utils.epsf*(utils.alpha*x - F[:,k].reshape((-1,1)))).ravel()
             C[:,k] = (C[:,k].reshape((-1,1)) - utils.epsr*(utils.beta*(V + utils.mu*r0) + C[:,k].reshape((-1,1)) + utils.mu*Id[:,k].reshape((-1,1)))).ravel()
             r0[k] = r0[k] + 1
         else:

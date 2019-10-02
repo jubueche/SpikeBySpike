@@ -9,6 +9,8 @@ from time import sleep, time
 import operator
 import rpyc
 import itertools
+import json
+import os
 
 import matplotlib.pyplot as plt
 
@@ -250,7 +252,15 @@ class SBSController():
             print(w)
         
     def plot_raster(self):
-        
-        plt.plot(self.recorded_events[:,1], self.recorded_events[:,0], 'o')
+        with open(os.path.join(os.getcwd(), "../parameters.param"), 'r') as f:
+            parameters = json.load(f)
+
+        times = np.asarray(self.recorded_events[:,1] / 1000, dtype=int)
+        plt.figure(figsize=(18, 6))
+        plt.plot(times, self.recorded_events[:,0]-min(self.population_ids)+1, 'o', c='k', markersize=0.5)
+        plt.ylim((0,parameters["Nneuron"]+1))
+        plt.yticks(ticks=np.linspace(0,parameters["Nneuron"],int(parameters["Nneuron"]/2)+1))
+        plt.title("DYNAPS spike train with initial discretized weights")
+        plt.savefig("Resources/DYNAPS_initial_spikes.png")
         plt.show()
         

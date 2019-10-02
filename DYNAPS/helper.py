@@ -12,10 +12,7 @@ def get_input(A, Nx, lam, dt, duration=1000):
     for d in range(Nx):
         InputT[d,:] = np.convolve(InputT[d,:], w, 'same')
 
-    # Compute the target output by leaky integration of InputT
-    for t in range(1,duration):
-        xT[:,t] = (1-lam*dt)*xT[:,t-1] + dt*InputT[:,t-1]
-    return xT
+    return InputT
 
 
 def signal_to_spike_refractory(interpfact, time, amplitude, thr_up, thr_dn,refractory_period):

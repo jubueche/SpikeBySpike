@@ -3,9 +3,15 @@ import numpy as np
 import os
 import json
 import matplotlib.pyplot as plt
+import sys
+sys.path.append(os.path.join(os.getcwd(), "../"))
 from runnet import runnet
 
+np.random.seed(42)
+
 duration = 1000
+threshold = 20
+maximal_input_syn = 10
 
 with open(os.path.join(os.getcwd(), "../parameters.param"), 'r') as f:
         parameters = json.load(f)
@@ -22,8 +28,8 @@ conn_x_down = []
 for i in range(0,F.shape[0]):
         tmp_up = np.copy(F.T[:,i]); tmp_down = np.copy(F.T[:,i])
         tmp_up[tmp_up < 0] = 0 ; tmp_down[tmp_down >= 0] = 0; tmp_down *= -1
-        tmp_up = tmp_up / (max(tmp_up)-min(tmp_up))*10 # Scale from 0 to 10
-        tmp_down = tmp_down / (max(tmp_down)-min(tmp_down))*10
+        tmp_up = tmp_up / (max(tmp_up)-min(tmp_up))*maximal_input_syn # Scale from 0 to 10
+        tmp_down = tmp_down / (max(tmp_down)-min(tmp_down))*maximal_input_syn
         conn_x_high.append(tmp_up)
         conn_x_down.append(tmp_down)  
         
@@ -34,8 +40,8 @@ for i in range(F.shape[0]):
 
 # Get the signal
 x = get_input(A=parameters["A"], Nx=parameters["Nx"], dt=parameters["dt"], lam=parameters["lam"], duration=duration)
+x.dump("Resources/x_in.dat")
 
-threshold = 0.5
 ups = []; downs = []
 for i in range(x.shape[0]):
         tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), x[i,:], threshold, threshold, 0.0001)
@@ -81,7 +87,20 @@ plt.show()
 
 
 ########## How does the spike train look when we run it on the initial matrix? ##########
+Fi = np.load("Resources/Fi.dat", allow_pickle=True)
+Ci = np.load("Resources/Ci.dat", allow_pickle=True)
 
 
+(_,OT,_) = runnet(dt=parameters["dt"], lam=parameters["lam"], F=Fi, Input=x, C=Ci,
+                        Nneuron=parameters["Nneuron"],Ntime=duration, Thresh=parameters["Thresh"])
 
-plt.figure(figsize=(12, 12))
+
+coordinates = np.nonzero(OT)
+
+plt.figure(figsize=(18, 6))
+plt.scatter(coordinates[1], coordinates[0]+1, marker='o', s=0.5, c='k')
+plt.ylim((0,parameters["Nneuron"]+1))
+plt.yticks(ticks=np.linspace(0,parameters["Nneuron"],int(parameters["Nneuron"]/2)+1))
+plt.title("Population spike train using initial weights")
+plt.savefig("Resources/initial_pop_spikes.png")
+plt.show()
