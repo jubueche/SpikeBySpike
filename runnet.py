@@ -6,7 +6,6 @@ import os
 
 def runnet(dt, lam, F, Input, C, Nneuron, Ntime, Thresh):
 
-    print(os.getcwd())
     with open(os.path.join(os.getcwd(), "parameters.param"), 'r') as f:
             parameters = json.load(f)
 
@@ -19,7 +18,7 @@ def runnet(dt, lam, F, Input, C, Nneuron, Ntime, Thresh):
     for t in range(1, Ntime):
         #! julianb
         I[:,t] = ((1-R*dt)*I[:,t-1].reshape((-1,1)) + dt*np.matmul(F.T, Input[:,t-1].reshape((-1,1))) + np.matmul(C, O[:,t-1].reshape((-1,1))) + 0.001*np.random.randn(Nneuron,1)).ravel()
-        V[:,t] = (1-dt)*V[:,t-1] + dt*R*I
+        V[:,t] = (1-dt)*V[:,t-1] + dt*R*I[:,t]
         #V[:,t] = ((1-lam*dt)*V[:,t-1].reshape((-1,1)) + dt*np.matmul(F.T, Input[:,t-1].reshape((-1,1))) + np.matmul(C, O[:,t-1].reshape((-1,1))) + 0.001*np.random.randn(Nneuron,1)).ravel()
         (m,k) = my_max(V[:,t].reshape((-1,1)) - Thresh-0.01*np.random.randn(Nneuron, 1))
 
