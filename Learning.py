@@ -16,6 +16,9 @@ def Learning(utils, F, C, F_spikes):
     Cs = np.zeros([utils.T, utils.Nneuron, utils.Nneuron]) # Store the recurrent weights over the course of training
     Fs = np.zeros([utils.T, utils.Nx, utils.Nneuron]) # Store the FF weights over the course of training
 
+    #! julianb
+    Fs_spikes = np.zeros([utils.T, 2*utils.Nx, 2*utils.Nneuron])
+
     V = np.zeros((utils.Nneuron, 1))
     #! julianb
     I = np.zeros((utils.Nneuron, 1))
@@ -46,6 +49,7 @@ def Learning(utils, F, C, F_spikes):
         if((i % 2**j) == 0): # Save the matrices on an exponential scale
             Cs[j-1,:,:] = C # Indexing starts at 0
             Fs[j-1,:,:] = F
+            Fs_spikes[j-1,:,:] = F_spikes
             j = j+1
 
         if(((i-2) % utils.Ntime) == 0):
@@ -98,6 +102,10 @@ def Learning(utils, F, C, F_spikes):
     for d in range(utils.Nx):
         InputL[d,:] = np.convolve(InputL[d,:], w, 'same')
         
+    #! julianb
+    (ups, downs) = utils.continous_to_spikes(InputL)
+    InputL_spikes = ups_downs_to_O(ups, downs, TimeL)
+
     # Compute the target output by a leaky integration of the input
     for t in range(1,TimeL):
         xL[:,t] = (1-utils.lam*utils.dt)*xL[:,t-1] + utils.dt*InputL[:,t-1]
@@ -105,7 +113,9 @@ def Learning(utils, F, C, F_spikes):
     print(("Computing %d decoders" % utils.T))
 
     for i in range(utils.T):
-        (rOL,_,_) = runnet(utils.dt, utils.lam, Fs[i,:,:], InputL, Cs[i,:,:], utils.Nneuron, TimeL, utils.Thresh)
+        #! julianb
+        (rOL,_,_) = runnet(utils.dt, utils.lam, Fs_spikes[i,:,:], InputL_spikes, Cs[i,:,:], utils.Nneuron, TimeL, utils.Thresh)
+        #(rOL,_,_) = runnet(utils.dt, utils.lam, Fs[i,:,:], InputL, Cs[i,:,:], utils.Nneuron, TimeL, utils.Thresh)
         Dec = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T # Returns solution that solves xL = Dec*r0L
         Decs[i,:,:] = Dec
 
@@ -125,12 +135,16 @@ def Learning(utils, F, C, F_spikes):
         for d in range(utils.Nx):
             InputT[d,:] = np.convolve(InputT[d,:], w, 'same')
 
+        #! julianb
+        (ups, downs) = utils.continous_to_spikes(InputT)
+        InputT_spikes = ups_downs_to_O(ups, downs, TimeT)
+
         # Compute the target output by leaky integration of InputT
         for t in range(1,TimeT):
             xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*InputT[:,t-1]
 
         for i in range(utils.T):
-            (rOT, OT, VT) = runnet(utils.dt, utils.lam, Fs[i,:,:], InputT, Cs[i,:,:], utils.Nneuron, TimeT, utils.Thresh)
+            (rOT, OT, VT) = runnet(utils.dt, utils.lam, Fs_spikes[i,:,:], InputT_spikes, Cs[i,:,:], utils.Nneuron, TimeT, utils.Thresh)
             xestc = np.matmul(Decs[i,:,:], rOT) # Decode the rate vector
             Error[0,i] = Error[0,i] + np.sum(np.var(xT-xestc, axis=1, ddof=1)) / (np.sum(np.var(xT, axis=1, ddof=1))*Trials)
             MeanPrate[0,i] = MeanPrate[0,i] + np.sum(OT) / (TimeT*utils.dt*utils.Nneuron*Trials)
