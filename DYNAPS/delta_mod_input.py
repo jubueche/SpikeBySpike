@@ -3,6 +3,7 @@ import numpy as np
 import os
 import json
 import matplotlib.pyplot as plt
+from runnet import runnet
 
 duration = 1000
 
@@ -80,3 +81,7 @@ plt.show()
 
 
 ########## How does the spike train look when we run it on the initial matrix? ##########
+
+
+
+plt.figure(figsize=(12, 12))

@@ -6,7 +6,7 @@ import os
 import json
 from plotting import *
 
-TRAINING = True
+TRAINING = False
 
 ########## Read parameter file #########
 
