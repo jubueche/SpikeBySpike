@@ -4,7 +4,7 @@
 
 1) Clone this repository. Afterwards step into the cloned repo.
 
-2) Create a virtual environment using ```$ python3 -m venv /venv```
+2) Create a virtual environment using ```$ python3 -m venv venv/```
 
 3) Activate the virtual environment using ```$ source venv/bin/activate```
 
