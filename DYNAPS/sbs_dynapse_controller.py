@@ -189,8 +189,8 @@ class SBSController():
         self.conn_down = []
 
         for i in range(self.num_signals):
-                    self.conn_up.append(np.load(("Resources/conn_x%d_up.dat" % i), allow_pickle=True))
-                    self.conn_down.append(np.load(("Resources/conn_x%d_down.dat" % i), allow_pickle=True))
+                    self.conn_up.append(np.load(("Resources/DYNAPSconn_x%d_up_spikes.dat" % i), allow_pickle=True))
+                    self.conn_down.append(np.load(("Resources/DYNAPSconn_x%d_down_spikes.dat" % i), allow_pickle=True))
         
 
         self.spike_times = self.compile_preloaded_stimulus(dummy_neuron_id = 255)

@@ -5,37 +5,18 @@ import json
 import matplotlib.pyplot as plt
 import sys
 sys.path.append(os.path.join(os.getcwd(), "../"))
-from runnet import runnet
+from runnet import runnet, runnet_spike_input
 
 np.random.seed(42)
 
 duration = 1000
-threshold = 20
 maximal_input_syn = 10
 
 with open(os.path.join(os.getcwd(), "../parameters.param"), 'r') as f:
         parameters = json.load(f)
 
-
 if(not os.path.isdir(os.path.join(os.getcwd(), "Resources"))):
         SystemError("Error: No Resource folder found.")
-
-F = np.load("Resources/F_after.dat", allow_pickle=True)
-
-conn_x_high = []
-conn_x_down = []
-
-for i in range(0,F.shape[0]):
-        tmp_up = np.copy(F.T[:,i]); tmp_down = np.copy(F.T[:,i])
-        tmp_up[tmp_up < 0] = 0 ; tmp_down[tmp_down >= 0] = 0; tmp_down *= -1
-        tmp_up = tmp_up / (max(tmp_up)-min(tmp_up))*maximal_input_syn # Scale from 0 to 10
-        tmp_down = tmp_down / (max(tmp_down)-min(tmp_down))*maximal_input_syn
-        conn_x_high.append(tmp_up)
-        conn_x_down.append(tmp_down)  
-        
-for i in range(F.shape[0]):
-        conn_x_high[i].dump(os.path.join("Resources", ("conn_x%d_up.dat" % i)))
-        conn_x_down[i].dump(os.path.join("Resources", ("conn_x%d_down.dat" % i)))
 
 
 # Get the signal
@@ -44,7 +25,7 @@ x.dump("Resources/x_in.dat")
 
 ups = []; downs = []
 for i in range(x.shape[0]):
-        tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), x[i,:], threshold, threshold, 0.0001)
+        tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), x[i,:], parameters["delta_modulator_threshold"], parameters["delta_modulator_threshold"], 0.0001)
         ups.append(np.asarray(tmp[0]))
         downs.append(np.asarray(tmp[1]))
 
@@ -55,6 +36,11 @@ for idx, (up, down) in enumerate((ups, downs)):
         up.dump(os.path.join("Resources",("x%d_up.dat" % idx)))
         down.dump(os.path.join("Resources",("x%d_down.dat" % idx)))
 
+OT_up = np.zeros((parameters["Nx"], parameters["Ntime"]))
+OT_down = np.zeros((parameters["Nx"], parameters["Ntime"]))
+for i in range(parameters["Nx"]):
+        OT_up[i,np.asarray(ups[i], dtype=int)] = 1
+        OT_down[i,np.asarray(downs[i], dtype=int)] = 1
 
 ###### Plotting spike trains ###### 
 plt.figure(figsize=(12, 12))
@@ -90,10 +76,19 @@ plt.show()
 Fi = np.load("Resources/Fi.dat", allow_pickle=True)
 Ci = np.load("Resources/Ci.dat", allow_pickle=True)
 
+DYNAPSconn_x_up_spikes = np.load("Resources/DYNAPSconn_x_up_spikes.dat", allow_pickle=True)
+DYNAPSconn_x_down_spikes = np.load("Resources/DYNAPSconn_x_down_spikes.dat", allow_pickle=True)
+conn_x_up_spikes = np.load("Resources/conn_x_up_spikes.dat", allow_pickle=True)
+conn_x_down_spikes = np.load("Resources/conn_x_down_spikes.dat", allow_pickle=True)
+print(DYNAPSconn_x_up_spikes)
+print(DYNAPSconn_x_down_spikes)
 
-(_,OT,_) = runnet(dt=parameters["dt"], lam=parameters["lam"], F=Fi, Input=x, C=Ci,
-                        Nneuron=parameters["Nneuron"],Ntime=duration, Thresh=parameters["Thresh"])
+for i in range(parameters["Nx"]):
+        DYNAPSconn_x_up_spikes[i].dump(("Resources/DYNAPSconn_x%d_up_spikes.dat" % i))
+        DYNAPSconn_x_down_spikes[i].dump(("Resources/DYNAPSconn_x%d_down_spikes.dat" % i))        
 
+OT = runnet_spike_input(dt=parameters["dt"], lam=parameters["lam"], conn_x_high=conn_x_up_spikes, conn_x_down=conn_x_down_spikes,
+                         OT_up=OT_up, OT_down=OT_down, C=Ci, Nneuron=parameters["Nneuron"],Ntime=duration, Thresh=parameters["Thresh"])
 
 coordinates = np.nonzero(OT)
 

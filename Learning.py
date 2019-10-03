@@ -2,8 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from Utils import my_max, ups_downs_to_O
 from runnet import runnet
+import sys
+import os
+sys.path.append(os.path.join(os.getcwd(), "DYNAPS/"))
+from helper import signal_to_spike_refractory
 
-def Learning(utils, F, C):
+def Learning(utils, F, C, conn_x_high, conn_x_down):
 
     TotTime = utils.Nit*utils.Ntime
 
@@ -46,6 +50,22 @@ def Learning(utils, F, C):
             for d in range(utils.Nx):
                 Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
 
+            # Compute spiking input
+            ups = []; downs = []
+            threshold = utils.delta_modulator_threshold
+            for i in range(Input.shape[0]):
+                    tmp = signal_to_spike_refractory(1, np.linspace(0,len(Input[i,:])-1,len(Input[i,:])), Input[i,:], threshold, threshold, 0.0001)
+                    ups.append(np.asarray(tmp[0]))
+                    downs.append(np.asarray(tmp[1]))
+
+            ups = np.asarray(ups)
+            downs = np.asarray(downs)
+            OT_up = np.zeros((utils.Nx, utils.Ntime))
+            OT_down = np.zeros((utils.Nx, utils.Ntime))
+            for i in range(utils.Nx):
+                OT_up[i,np.asarray(ups[i], dtype=int)] = 1
+                OT_down[i,np.asarray(downs[i], dtype=int)] = 1
+
 
         #! julianb, spiking input
         """I = (1-lam*dt)*I + dt*F_spikes^T*Input_spikes + O*C[:,k] + 0.001*randn(NNeuron)
@@ -53,7 +73,12 @@ def Learning(utils, F, C):
         V = (1-utils.dt)*V + utils.dt*utils.R*I
         V[V >= utils.Thresh] = V[V >= utils.Thresh] - utils.Thresh*np.ones(len(V[V >= utils.Thresh]))"""
         
-        V = (1-utils.lam*utils.dt)*V + utils.dt*np.matmul(F.T, Input[:,(i % utils.Ntime)].reshape((-1,1))) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
+        # conn_x_high[0] is the first F for the first up_spike_train
+        t = (i % utils.Ntime) #! make modular
+        spiking_input_v_cont = conn_x_high[0]*OT_up[0,t] + conn_x_high[1]*OT_up[1,t]-conn_x_down[0]*OT_down[0,t]-conn_x_down[1]*OT_down[1,t]
+
+        # V = (1-utils.lam*utils.dt)*V + utils.dt*np.matmul(F.T, Input[:,(i % utils.Ntime)].reshape((-1,1))) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
+        V = (1-utils.lam*utils.dt)*V + spiking_input_v_cont.reshape((-1,1)) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
 
         x = (1-utils.lam*utils.dt)*x + utils.dt*Input[:, (i % utils.Ntime)].reshape((-1,1)) #! Removed (i % Ntime)+1 the +1 for indexing
 
