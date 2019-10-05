@@ -7,7 +7,6 @@ import json
 from plotting import *
 
 TRAINING = True
-DISCRETIZE = False
 
 ########## Read parameter file #########
 
@@ -71,7 +70,7 @@ if(TRAINING):
     #! Added by julianb
     C_initial = -utils.Thresh*np.eye(utils.Nneuron)
 
-    results = Learning(utils, F_initial, C_initial, conn_x_high, conn_x_down)
+    results = Learning(utils, F_initial, C_initial, conn_x_down, conn_x_high)
 
     ########## Dump the important files to Resources folder ##########
     for key in results:

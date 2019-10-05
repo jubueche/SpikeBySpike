@@ -1,15 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from Utils import my_max, ups_downs_to_O
-from runnet import runnet
+from runnet import *
 import sys
 import os
 sys.path.append(os.path.join(os.getcwd(), "DYNAPS/"))
 from helper import signal_to_spike_refractory
 
-def Learning(utils, F, C, conn_x_high, conn_x_down):
+def Learning(utils, F, C, conn_x_down, conn_x_high):
 
     TotTime = utils.Nit*utils.Ntime
+
+    spiking_input_v_cont_old = np.zeros((utils.Nneuron,))
 
     Fi = np.copy(F)
     Ci = np.copy(C)
@@ -50,21 +52,7 @@ def Learning(utils, F, C, conn_x_high, conn_x_down):
             for d in range(utils.Nx):
                 Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
 
-            # Compute spiking input
-            ups = []; downs = []
-            threshold = utils.delta_modulator_threshold
-            for i in range(Input.shape[0]):
-                    tmp = signal_to_spike_refractory(1, np.linspace(0,len(Input[i,:])-1,len(Input[i,:])), Input[i,:], threshold, threshold, 0.0001)
-                    ups.append(np.asarray(tmp[0]))
-                    downs.append(np.asarray(tmp[1]))
-
-            ups = np.asarray(ups)
-            downs = np.asarray(downs)
-            OT_up = np.zeros((utils.Nx, utils.Ntime))
-            OT_down = np.zeros((utils.Nx, utils.Ntime))
-            for i in range(utils.Nx):
-                OT_up[i,np.asarray(ups[i], dtype=int)] = 1
-                OT_down[i,np.asarray(downs[i], dtype=int)] = 1
+            (OT_down, OT_up) = get_spiking_input(utils.delta_modulator_threshold, Input, utils.Nx, utils.Ntime)
 
 
         #! julianb, spiking input
@@ -75,12 +63,14 @@ def Learning(utils, F, C, conn_x_high, conn_x_down):
         
         # conn_x_high[0] is the first F for the first up_spike_train
         t = (i % utils.Ntime) #! make modular
-        spiking_input_v_cont = conn_x_high[0]*OT_up[0,t] + conn_x_high[1]*OT_up[1,t]-conn_x_down[0]*OT_down[0,t]-conn_x_down[1]*OT_down[1,t]
+        spiking_input_v_cont = spiking_input_v_cont_old + conn_x_high[0]*OT_up[0,t] + conn_x_high[1]*OT_up[1,t]-conn_x_down[0]*OT_down[0,t]-conn_x_down[1]*OT_down[1,t]
 
-        # V = (1-utils.lam*utils.dt)*V + utils.dt*np.matmul(F.T, Input[:,(i % utils.Ntime)].reshape((-1,1))) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
+        #V = (1-utils.lam*utils.dt)*V + utils.dt*np.matmul(F.T, Input[:,(i % utils.Ntime)].reshape((-1,1))) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
         V = (1-utils.lam*utils.dt)*V + spiking_input_v_cont.reshape((-1,1)) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
 
         x = (1-utils.lam*utils.dt)*x + utils.dt*Input[:, (i % utils.Ntime)].reshape((-1,1)) #! Removed (i % Ntime)+1 the +1 for indexing
+
+        spiking_input_v_cont_old = spiking_input_v_cont
 
         (m, k) = my_max(V - utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)) # Returns maximum and argmax
 
@@ -109,6 +99,9 @@ def Learning(utils, F, C, conn_x_high, conn_x_down):
     for d in range(utils.Nx):
         InputL[d,:] = np.convolve(InputL[d,:], w, 'same')
         
+    #! Get the long spiking input for the decoders    
+    (OT_downL, OT_upL) = get_spiking_input(utils.delta_modulator_threshold, InputL, utils.Nx, TimeL)
+
     # Compute the target output by a leaky integration of the input
     for t in range(1,TimeL):
         xL[:,t] = (1-utils.lam*utils.dt)*xL[:,t-1] + utils.dt*InputL[:,t-1]
@@ -116,7 +109,9 @@ def Learning(utils, F, C, conn_x_high, conn_x_down):
     print(("Computing %d decoders" % utils.T))
 
     for i in range(utils.T):
-        (rOL,_,_) = runnet(utils.dt, utils.lam, Fs[i,:,:], InputL, Cs[i,:,:], utils.Nneuron, TimeL, utils.Thresh)
+        #! Use spiking input for decoder
+        (rOL,_,_) =  runnet_spike_input(utils.dt, utils.lam, conn_x_high, conn_x_down, OT_upL, OT_downL, Cs[i,:,:], utils.Nneuron, TimeL, utils.Thresh)
+        #(rOL,_,_) = runnet(utils.dt, utils.lam, Fs[i,:,:], InputL, Cs[i,:,:], utils.Nneuron, TimeL, utils.Thresh)
         Dec = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T # Returns solution that solves xL = Dec*r0L
         Decs[i,:,:] = Dec
 
@@ -124,11 +119,10 @@ def Learning(utils, F, C, conn_x_high, conn_x_down):
     TimeT = 10000
     MeanPrate = np.zeros((1,utils.T))
     Error = np.zeros((1,utils.T))
-    myError = np.zeros((1,utils.T)) #! Added by julianb
     MembraneVar = np.zeros((1,utils.T))
     xT = np.zeros((utils.Nx, TimeT))
 
-    Trials = 10
+    Trials = 5
 
     for r in range(Trials):
         InputT = utils.A*(np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), TimeT)).T
@@ -136,17 +130,19 @@ def Learning(utils, F, C, conn_x_high, conn_x_down):
         for d in range(utils.Nx):
             InputT[d,:] = np.convolve(InputT[d,:], w, 'same')
 
+        (OT_downT, OT_upT) = get_spiking_input(utils.delta_modulator_threshold, InputT, utils.Nx, TimeT)
+
         # Compute the target output by leaky integration of InputT
         for t in range(1,TimeT):
             xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*InputT[:,t-1]
 
         for i in range(utils.T):
-            (rOT, OT, VT) = runnet(utils.dt, utils.lam, Fs[i,:,:], InputT, Cs[i,:,:], utils.Nneuron, TimeT, utils.Thresh)
+            #(rOT, OT, VT) = runnet(utils.dt, utils.lam, Fs[i,:,:], InputT, Cs[i,:,:], utils.Nneuron, TimeT, utils.Thresh)
+            (rOT, OT, VT) = runnet_spike_input(utils.dt, utils.lam, conn_x_high, conn_x_down, OT_upT, OT_downT, Cs[i,:,:], utils.Nneuron, TimeT, utils.Thresh)
             xestc = np.matmul(Decs[i,:,:], rOT) # Decode the rate vector
             Error[0,i] = Error[0,i] + np.sum(np.var(xT-xestc, axis=1, ddof=1)) / (np.sum(np.var(xT, axis=1, ddof=1))*Trials)
             MeanPrate[0,i] = MeanPrate[0,i] + np.sum(OT) / (TimeT*utils.dt*utils.Nneuron*Trials)
             MembraneVar[0,i] = MembraneVar[0,i] + np.sum(np.var(VT, axis=1, ddof=1)) / (utils.Nneuron*Trials)
-            myError[0,i] = np.linalg.norm(xT-xestc, 2)
 
 
     ErrorC = np.zeros((1,utils.T))

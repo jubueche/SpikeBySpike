@@ -80,14 +80,12 @@ DYNAPSconn_x_up_spikes = np.load("Resources/DYNAPSconn_x_up_spikes.dat", allow_p
 DYNAPSconn_x_down_spikes = np.load("Resources/DYNAPSconn_x_down_spikes.dat", allow_pickle=True)
 conn_x_up_spikes = np.load("Resources/conn_x_up_spikes.dat", allow_pickle=True)
 conn_x_down_spikes = np.load("Resources/conn_x_down_spikes.dat", allow_pickle=True)
-print(DYNAPSconn_x_up_spikes)
-print(DYNAPSconn_x_down_spikes)
 
 for i in range(parameters["Nx"]):
         DYNAPSconn_x_up_spikes[i].dump(("Resources/DYNAPSconn_x%d_up_spikes.dat" % i))
         DYNAPSconn_x_down_spikes[i].dump(("Resources/DYNAPSconn_x%d_down_spikes.dat" % i))        
 
-OT = runnet_spike_input(dt=parameters["dt"], lam=parameters["lam"], conn_x_high=conn_x_up_spikes, conn_x_down=conn_x_down_spikes,
+(_,OT,_) = runnet_spike_input(dt=parameters["dt"], lam=parameters["lam"], conn_x_high=conn_x_up_spikes, conn_x_down=conn_x_down_spikes,
                          OT_up=OT_up, OT_down=OT_down, C=Ci, Nneuron=parameters["Nneuron"],Ntime=duration, Thresh=parameters["Thresh"])
 
 coordinates = np.nonzero(OT)
