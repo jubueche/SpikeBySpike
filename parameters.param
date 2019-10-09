@@ -14,7 +14,7 @@
     "gamma" : 1,
     "sigma" : 30,
     "A" : 2000,
-    "delta_modulator_threshold": 0.5,
+    "delta_modulator_threshold": 63,
     "R": 1000,
-    "dynapse_maximal_synapse": 8
+    "dynapse_maximal_synapse": 10
 }

@@ -1,12 +1,12 @@
 import numpy as np
-from Learning import Learning
+from Learning import Learning, spiking_to_continous
 from Utils import Utils
 import sys
 import os
 import json
 from plotting import *
 
-TRAINING = True
+TRAINING = False
 
 ########## Read parameter file #########
 
@@ -80,4 +80,7 @@ if(TRAINING):
     plot(results, utils, direc)
 
 else:
-    plot_from_resources(resources, utils, direc)
+
+    spiking_to_continous(utils)
+
+    #plot_from_resources(resources, utils, direc)

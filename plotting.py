@@ -71,7 +71,7 @@ def plot_from_resources(resources_direc, utils, direc):
     Ci = np.load(os.path.join(resources_direc, "Ci.dat"), allow_pickle=True)
     Deci = np.load(os.path.join(resources_direc, "Deci.dat"), allow_pickle=True)
     # Load post weights
-    #F_after = np.load(os.path.join(resources_direc, "F_after.dat"), allow_pickle=True)
+    F_after = np.load(os.path.join(resources_direc, "F_after.dat"), allow_pickle=True)
     C_after = np.load(os.path.join(resources_direc, "C_after.dat"), allow_pickle=True)
     Dec_after = np.load(os.path.join(resources_direc, "D_after.dat"), allow_pickle=True)
     # Load kernel
@@ -91,12 +91,14 @@ def plot_from_resources(resources_direc, utils, direc):
 
     # Run on beginning
     #(rOT_initial, OT_initial, VT_initial) = runnet(utils.dt, utils.lam, Fi, InputT, Ci, utils.Nneuron, TimeT, utils.Thresh)
-    (rOT_initial, OT_initial, VT_initial) = runnet_spike_input(utils.dt, utils.lam, conn_x_up, conn_x_down, OT_up, OT_down, Ci, utils.Nneuron, TimeT, utils.Thresh)
+    #(rOT_initial, OT_initial, VT_initial) = runnet_spike_input(utils.dt, utils.lam, conn_x_up, conn_x_down, OT_up, OT_down, Ci, utils.Nneuron, TimeT, utils.Thresh)
+    (rOT_initial, OT_initial, VT_initial) = runnet_recon_x(utils.dt, utils.lam, Fi, OT_up, OT_down, Ci, utils.Nneuron, TimeT, utils.Thresh, x_recon_lam = 0.001, x_recon_R = 1.0)
     xest_initial = np.matmul(Deci, rOT_initial)
 
     # Run on end
     #(rOT_after, OT_after, VT_after) = runnet(utils.dt, utils.lam, F_after, InputT, C_after, utils.Nneuron, TimeT, utils.Thresh)
-    (rOT_after, OT_after, VT_after) = runnet_spike_input(utils.dt, utils.lam, conn_x_up, conn_x_down, OT_up, OT_down, C_after, utils.Nneuron, TimeT, utils.Thresh)
+    #(rOT_after, OT_after, VT_after) = runnet_spike_input(utils.dt, utils.lam, conn_x_up, conn_x_down, OT_up, OT_down, C_after, utils.Nneuron, TimeT, utils.Thresh)
+    (rOT_after, OT_after, VT_after) = runnet_recon_x(utils.dt, utils.lam, F_after, OT_up, OT_down, C_after, utils.Nneuron, TimeT, utils.Thresh, x_recon_lam = 0.001, x_recon_R = 1.0)
     xest_after = np.matmul(Dec_after, rOT_after)
 
     ######### Plotting #########
