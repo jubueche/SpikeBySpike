@@ -15,7 +15,7 @@ def get_input(A, Nx, lam, dt, duration=1000):
     return InputT
 
 
-def signal_to_spike_refractory(interpfact, time, amplitude, thr_up, thr_dn,refractory_period):
+def signal_to_spike_refractory(interpfact, time, amplitude, thr_up, thr_dn, refractory_period):
     #interpfact: desired frequency of the upsampled data
     actual_dc = 0 
     spike_up = []

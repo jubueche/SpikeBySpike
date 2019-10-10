@@ -199,13 +199,6 @@ class SBSController():
         self.F[:,2] = DWN1_weights
         self.F[:,3] = DWN2_weights 
 
-        """self.F[0:11,:] = 0
-        self.F[12:,:] = 0
-        self.F[11,1] = 0
-        self.F[11,0] = 30
-        self.F[11,2] = 0
-        self.F[11,3] = 0"""
-
         print(self.F)
 
         self.spike_times = self.compile_preloaded_stimulus(dummy_neuron_id = 255)
@@ -220,23 +213,16 @@ class SBSController():
         self.load_spike_gen(fpga_events=fpga_events, isi_base=self.base_isi, repeat_mode=False)
 
         vn_list = []; pop_neur_list = []; syn_list = []
-        vn_list_i = []; pop_neur_list_i = []; syn_list_i = []
-        
 
         for i in range(2*self.num_signals):
             for j in range(self.num_neurons):
                 for k in range(abs(self.F[j,i])): # weight from in-i to pop-j
                     vn_list.append(self.input_population[i])
-                    vn_list_i.append(i)
-                    pop_neur_list_i.append(j)
                     pop_neur_list.append(self.population[j])
                     if(self.F[j,i] > 0):
                         syn_list.append(self.SynTypes.FAST_EXC)
                     else:
                         syn_list.append(self.SynTypes.FAST_INH)
-        
-        print(vn_list_i)
-        print(pop_neur_list_i)
 
         self.connector.add_connection_from_list(vn_list, pop_neur_list, syn_list)
         self.model.apply_diff_state()

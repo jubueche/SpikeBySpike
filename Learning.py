@@ -41,7 +41,7 @@ def spiking_to_continous(utils):
 
     print(("Best lam: %.4f Best R: %.4f Best Thresh: %.4f" % (b_lam, b_R, b_thresh)))
     run_trial_FTMI(utils, Input, x, b_thresh, b_R, b_lam, plot=True)
-    
+
 
 def run_trial_FTMI(utils, Input, x, delta_mod_tresh, R, lam, plot=False):
     M = np.asarray([[1, -1, 0, 0], [0, 0, 1, -1]])
@@ -56,6 +56,7 @@ def run_trial_FTMI(utils, Input, x, delta_mod_tresh, R, lam, plot=False):
     if(plot):
         plt.plot(x.T)
         plt.plot(x_recon.T)
+        plt.title("Signal reconstructed from spiking input")
         plt.show()
     return np.linalg.norm((x-x_recon).reshape(-1,),2)
 
@@ -78,6 +79,10 @@ def Learning(utils, F, C):
     x_recon_lam = 0.001
     x_recon_R = 1.0
     delta_F = 0.1
+    # Save the updates in here
+    delta_Omega = np.zeros(C.shape)
+    # Keep track of how many times C[:,k] was updated
+    ks = np.zeros(C.shape[1])
 
     V = np.zeros((utils.Nneuron, 1))
 
@@ -115,6 +120,17 @@ def Learning(utils, F, C):
 
             (OT_down, OT_up) = get_spiking_input(utils.delta_modulator_threshold, Input, utils.Nx, utils.Ntime)
         
+            # Need to do the update
+            # First transform each column
+            for i in range(delta_Omega.shape[1]):
+                if(ks[i] > 0):
+                    delta_Omega[:,i] /= ks[i]
+            # Do the update
+            C = C - delta_Omega
+            # Reset
+            ks = np.zeros(delta_Omega.shape[1])
+            delta_Omega = np.zeros(C.shape)
+
         t = (i % utils.Ntime)
 
         x = (1-utils.lam*utils.dt)*x + utils.dt*Input[:, t].reshape((-1,1)) #! Removed (i % Ntime)+1 the +1 for indexing
@@ -131,7 +147,10 @@ def Learning(utils, F, C):
         if (m >= 0): # We have a spike
             O = 1
             # F[:,k] = (F[:,k].reshape((-1,1)) + utils.epsf*(utils.alpha*x - F[:,k].reshape((-1,1)))).ravel()
-            C[:,k] = (C[:,k].reshape((-1,1)) - utils.epsr*(utils.beta*(V + utils.mu*r0) + C[:,k].reshape((-1,1)) + utils.mu*Id[:,k].reshape((-1,1)))).ravel()
+            tmp = (utils.epsr*(utils.beta*(V + utils.mu*r0) + C[:,k].reshape((-1,1)) + utils.mu*Id[:,k].reshape((-1,1)))).ravel()
+            # C[:,k] = (C[:,k].reshape((-1,1)) - tmp.reshape((-1,1))).ravel()
+            delta_Omega[:,k] =  delta_Omega[:,k] + tmp
+            ks[k] += 1
             r0[k] = r0[k] + 1
         else:
             O = 0

@@ -6,7 +6,6 @@ import os
 from runnet import *
 
 
-# TODO Need to save figures in direc
 def plot(results, utils, direc):
 
     Error = results["Error"]
@@ -65,9 +64,6 @@ def plot_from_resources(resources_direc, utils, direc):
     # Load pre weights
     Fi = np.load(os.path.join(resources_direc, "Fi.dat"), allow_pickle=True)
     
-    conn_x_up = np.load(os.path.join(resources_direc, "conn_x_up_spikes.dat"), allow_pickle=True)
-    conn_x_down = np.load(os.path.join(resources_direc, "conn_x_down_spikes.dat"), allow_pickle=True)
-    
     Ci = np.load(os.path.join(resources_direc, "Ci.dat"), allow_pickle=True)
     Deci = np.load(os.path.join(resources_direc, "Deci.dat"), allow_pickle=True)
     # Load post weights
@@ -90,14 +86,10 @@ def plot_from_resources(resources_direc, utils, direc):
     (OT_down, OT_up) = get_spiking_input(utils.delta_modulator_threshold, InputT, utils.Nx, TimeT)
 
     # Run on beginning
-    #(rOT_initial, OT_initial, VT_initial) = runnet(utils.dt, utils.lam, Fi, InputT, Ci, utils.Nneuron, TimeT, utils.Thresh)
-    #(rOT_initial, OT_initial, VT_initial) = runnet_spike_input(utils.dt, utils.lam, conn_x_up, conn_x_down, OT_up, OT_down, Ci, utils.Nneuron, TimeT, utils.Thresh)
     (rOT_initial, OT_initial, VT_initial) = runnet_recon_x(utils.dt, utils.lam, Fi, OT_up, OT_down, Ci, utils.Nneuron, TimeT, utils.Thresh, x_recon_lam = 0.001, x_recon_R = 1.0)
     xest_initial = np.matmul(Deci, rOT_initial)
 
     # Run on end
-    #(rOT_after, OT_after, VT_after) = runnet(utils.dt, utils.lam, F_after, InputT, C_after, utils.Nneuron, TimeT, utils.Thresh)
-    #(rOT_after, OT_after, VT_after) = runnet_spike_input(utils.dt, utils.lam, conn_x_up, conn_x_down, OT_up, OT_down, C_after, utils.Nneuron, TimeT, utils.Thresh)
     (rOT_after, OT_after, VT_after) = runnet_recon_x(utils.dt, utils.lam, F_after, OT_up, OT_down, C_after, utils.Nneuron, TimeT, utils.Thresh, x_recon_lam = 0.001, x_recon_R = 1.0)
     xest_after = np.matmul(Dec_after, rOT_after)
 

@@ -8,9 +8,6 @@ from plotting import *
 
 TRAINING = True
 
-#! TODO: - Try cumulative recurrent weight updates either with 1/T*Delta Omega or just Delta Omega
-#!       - Convert F.T*M to discrete weight and change DYNAPS/main.py to handle negative weights as well
-
 ########## Read parameter file #########
 
 if(sys.argv[1] != None):
@@ -72,6 +69,6 @@ if(TRAINING):
 
 else:
 
-    spiking_to_continous(utils)
+   # spiking_to_continous(utils)
 
-    #plot_from_resources(resources, utils, direc)
+    plot_from_resources(resources, utils, direc)
