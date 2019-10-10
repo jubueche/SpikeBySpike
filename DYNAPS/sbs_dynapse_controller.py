@@ -168,6 +168,7 @@ class SBSController():
 
         
     def load_resources(self):
+        #! TODO Check order of input spikes. Should be [x1up, x1dwn, x2up, x2dwn]
         """
             1. Loading all resource files: input weights and preloaded spiketrains.
             2. Injecting spikes of a dummy neuron to account for max. ISI.
@@ -184,14 +185,28 @@ class SBSController():
                     self.spikes_down.append(np.load(("Resources/x%d_down.dat" % i), allow_pickle=True))
                 
 
-        # conn_up[i] corresponds to the weight of the connections from neuron i to all 20 neurons
-        self.conn_up = []
-        self.conn_down = []
+        self.F = np.load("Resources/DYNAPS_F.dat", allow_pickle=True) 
 
-        for i in range(self.num_signals):
-                    self.conn_up.append(np.load(("Resources/DYNAPSconn_x%d_up_spikes.dat" % i), allow_pickle=True))
-                    self.conn_down.append(np.load(("Resources/DYNAPSconn_x%d_down_spikes.dat" % i), allow_pickle=True))
-        
+        DWN1_weights = np.copy(self.F[:,1])
+        DWN2_weights = np.copy(self.F[:,3])
+        UP1_weights = np.copy(self.F[:,0])
+        UP2_weights = np.copy(self.F[:,2])
+
+        # F takes UP1, DWN1, UP2, DWN2
+        # input comes as UP1, UP2, DWN1, DWN2
+        self.F[:,0] = UP1_weights
+        self.F[:,1] = UP2_weights
+        self.F[:,2] = DWN1_weights
+        self.F[:,3] = DWN2_weights 
+
+        """self.F[0:11,:] = 0
+        self.F[12:,:] = 0
+        self.F[11,1] = 0
+        self.F[11,0] = 30
+        self.F[11,2] = 0
+        self.F[11,3] = 0"""
+
+        print(self.F)
 
         self.spike_times = self.compile_preloaded_stimulus(dummy_neuron_id = 255)
         
@@ -204,26 +219,27 @@ class SBSController():
         # Load spike gen
         self.load_spike_gen(fpga_events=fpga_events, isi_base=self.base_isi, repeat_mode=False)
 
-        # Create the feedforward connections based on the matrices
-        weights = [self.conn_up, self.conn_down]
-        weights = [elem.astype(int).tolist() for w in weights for elem in w] # Create simple list of lists and cast to int
+        vn_list = []; pop_neur_list = []; syn_list = []
+        vn_list_i = []; pop_neur_list_i = []; syn_list_i = []
         
-        vn_list = []; pop_neur_list = []
-        # For every input neuron        
-        for current_vn_idx,weight in enumerate(weights):
-            for current_pop_neuron_idx,w in enumerate(weight):
-                vn_tmp = [self.input_population[current_vn_idx] for _ in range(w)]
-                pop_n_tmp = [self.population[current_pop_neuron_idx] for _ in range(w)]
-                vn_list.append(vn_tmp)
-                pop_neur_list.append(pop_n_tmp)
 
-        vn_list = [elem for l in vn_list for elem in l]
-        pop_neur_list = [elem for l in pop_neur_list for elem in l]
+        for i in range(2*self.num_signals):
+            for j in range(self.num_neurons):
+                for k in range(abs(self.F[j,i])): # weight from in-i to pop-j
+                    vn_list.append(self.input_population[i])
+                    vn_list_i.append(i)
+                    pop_neur_list_i.append(j)
+                    pop_neur_list.append(self.population[j])
+                    if(self.F[j,i] > 0):
+                        syn_list.append(self.SynTypes.FAST_EXC)
+                    else:
+                        syn_list.append(self.SynTypes.FAST_INH)
+        
+        print(vn_list_i)
+        print(pop_neur_list_i)
 
-        self.connector.add_connection_from_list(vn_list, pop_neur_list, [self.SynTypes.SLOW_EXC])
+        self.connector.add_connection_from_list(vn_list, pop_neur_list, syn_list)
         self.model.apply_diff_state()
-        
-        
     
     def compile_preloaded_stimulus(self, dummy_neuron_id = 255):
         
@@ -245,11 +261,6 @@ class SBSController():
             
         return output_events
     
-    def set_connections_F(self):
-        
-        # Number of neurons: 2*number of signals
-        for w in self.conn_down:
-            print(w)
         
     def plot_raster(self):
         with open(os.path.join(os.getcwd(), "../parameters.param"), 'r') as f:

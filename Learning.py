@@ -41,19 +41,7 @@ def spiking_to_continous(utils):
 
     print(("Best lam: %.4f Best R: %.4f Best Thresh: %.4f" % (b_lam, b_R, b_thresh)))
     run_trial_FTMI(utils, Input, x, b_thresh, b_R, b_lam, plot=True)
-
-# run a trial and return the l2 norm as a cost
-"""def run_trial(utils, Input, x, delta_mod_tresh, R, lam, plot=False):
-    (OT_down, OT_up) = get_spiking_input(delta_mod_tresh, Input, utils.Nx, utils.Ntime)
-    x_recon = np.zeros(Input.shape)
-    for t in range(1,utils.Ntime):
-         x_recon[:,t] = (1-lam)*x_recon[:,t-1] + R*np.asarray([OT_up[0,t]-OT_down[0,t], OT_up[1,t]-OT_down[1,t]])    
-
-    if(plot):
-        plt.plot(x.T)
-        plt.plot(x_recon.T)
-        plt.show()
-    return np.linalg.norm((x-x_recon).reshape(-1,),2)"""
+    
 
 def run_trial_FTMI(utils, Input, x, delta_mod_tresh, R, lam, plot=False):
     M = np.asarray([[1, -1, 0, 0], [0, 0, 1, -1]])
@@ -73,7 +61,7 @@ def run_trial_FTMI(utils, Input, x, delta_mod_tresh, R, lam, plot=False):
 
 
 
-def Learning(utils, F, C, conn_x_down, conn_x_high):
+def Learning(utils, F, C):
 
     TotTime = utils.Nit*utils.Ntime
 
@@ -98,9 +86,6 @@ def Learning(utils, F, C, conn_x_down, conn_x_high):
     r0 = np.zeros((utils.Nneuron, 1))
 
     x = np.zeros((utils.Nx, 1))
-    xs = np.zeros((utils.Nx, utils.Ntime))
-    xs_recon = np.zeros((utils.Nx, utils.Ntime))
-    x_recon = np.zeros((utils.Nx, 1))
     I = np.zeros((2*utils.Nx, 1))
     Input = np.zeros((utils.Nx, utils.Ntime))
     Id = np.eye(utils.Nneuron)
@@ -133,17 +118,12 @@ def Learning(utils, F, C, conn_x_down, conn_x_high):
         t = (i % utils.Ntime)
 
         x = (1-utils.lam*utils.dt)*x + utils.dt*Input[:, t].reshape((-1,1)) #! Removed (i % Ntime)+1 the +1 for indexing
-        xs[:,t] = x.ravel()
 
         ot = np.asarray([OT_up[0,t], OT_down[0,t], OT_up[1,t], OT_down[1,t]]).reshape((-1,1))
         I = (1-x_recon_lam)*I + x_recon_R*ot
         MIs[:,t] = np.matmul(M, I).ravel()
         FTMI = np.matmul(np.matmul(F.T, M), I)
 
-        x_recon = (1-x_recon_lam)*x_recon + x_recon_R*np.asarray([OT_up[0,t]-OT_down[0,t], OT_up[1,t]-OT_down[1,t]]).reshape((-1,1))    
-        xs_recon[:,t] = x_recon.ravel()
-
-        #V = (1-utils.lam*utils.dt)*V + delta_F*np.matmul(F.T, x_recon.reshape((-1,1))) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
         V = (1-utils.lam*utils.dt)*V + delta_F*FTMI.reshape((-1,1)) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)        
 
         (m, k) = my_max(V - utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)) # Returns maximum and argmax

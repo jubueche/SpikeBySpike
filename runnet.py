@@ -9,7 +9,12 @@ from helper import signal_to_spike_refractory
 
 def runnet_recon_x(dt, lam, F, OT_up, OT_down, C, Nneuron, Ntime, Thresh, x_recon_lam = 0.001, x_recon_R = 1.0, delta_F = 0.1):
 
-    with open(os.path.join(os.getcwd(), "parameters.param"), 'r') as f:
+    try:
+        with open(os.path.join(os.getcwd(), "parameters.param"), 'r') as f:
+                parameters = json.load(f)
+    except:
+        print("File not found. Looking in upper directory.")
+        with open(os.path.join(os.getcwd(), "../parameters.param"), 'r') as f:
             parameters = json.load(f)
 
     Nx = F.shape[0]
@@ -30,8 +35,6 @@ def runnet_recon_x(dt, lam, F, OT_up, OT_down, C, Nneuron, Ntime, Thresh, x_reco
         I = (1-x_recon_lam)*I + x_recon_R*ot
         FTMI = np.matmul(np.matmul(F.T, M), I)
 
-        #V[:,t] = ((1-lam*dt)*V[:,t-1].reshape((-1,1)) + delta_F*np.matmul(F.T, x_recon.reshape((-1,1))) + np.matmul(C, O[:,t-1].reshape((-1,1))) + 0.001*np.random.randn(Nneuron,1)).ravel()
-        #x_recon = (1-x_recon_lam)*x_recon + x_recon_R*np.asarray([OT_up[0,t]-OT_down[0,t], OT_up[1,t]-OT_down[1,t]]).reshape((-1,1))
         (m,k) = my_max(V[:,t].reshape((-1,1)) - Thresh-0.01*np.random.randn(Nneuron, 1))
 
         if(m>=0):
