@@ -6,7 +6,10 @@ import os
 import json
 from plotting import *
 
-TRAINING = True
+TRAINING = False
+
+#! TODO: - Improve network behaviour on DYNAPS, find best hyperparams by computing rate vectors and computing the covariance
+#!       - Omit all weights except one and compare spike trains with spiking input   
 
 ########## Read parameter file #########
 

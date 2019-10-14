@@ -86,11 +86,11 @@ def plot_from_resources(resources_direc, utils, direc):
     (OT_down, OT_up) = get_spiking_input(utils.delta_modulator_threshold, InputT, utils.Nx, TimeT)
 
     # Run on beginning
-    (rOT_initial, OT_initial, VT_initial) = runnet_recon_x(utils.dt, utils.lam, Fi, OT_up, OT_down, Ci, utils.Nneuron, TimeT, utils.Thresh, x_recon_lam = 0.001, x_recon_R = 1.0)
+    (rOT_initial, OT_initial, VT_initial) = runnet_recon_x(utils.dt, utils.lam, Fi, OT_up, OT_down, Ci, utils.Nneuron, TimeT, utils.Thresh, xT, x_recon_lam = 0.001, x_recon_R = 1.0)
     xest_initial = np.matmul(Deci, rOT_initial)
 
     # Run on end
-    (rOT_after, OT_after, VT_after) = runnet_recon_x(utils.dt, utils.lam, F_after, OT_up, OT_down, C_after, utils.Nneuron, TimeT, utils.Thresh, x_recon_lam = 0.001, x_recon_R = 1.0)
+    (rOT_after, OT_after, VT_after) = runnet_recon_x(utils.dt, utils.lam, F_after, OT_up, OT_down, C_after, utils.Nneuron, TimeT, utils.Thresh, xT, x_recon_lam = 0.001, x_recon_R = 1.0)
     xest_after = np.matmul(Dec_after, rOT_after)
 
     ######### Plotting #########

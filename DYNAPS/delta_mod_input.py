@@ -25,7 +25,7 @@ x.dump("Resources/x_in.dat")
 
 ups = []; downs = []
 for i in range(x.shape[0]):
-        tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), x[i,:], 0.01*parameters["delta_modulator_threshold"], 0.1*parameters["delta_modulator_threshold"], 0.0001)
+        tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), x[i,:], 0.01*parameters["delta_modulator_threshold"], 0.01*parameters["delta_modulator_threshold"], 0.0001)
         ups.append(np.asarray(tmp[0]))
         downs.append(np.asarray(tmp[1]))
 
@@ -75,7 +75,7 @@ Ci = np.load("Resources/Ci.dat", allow_pickle=True)
 
 
 (_,OT,_) = runnet_recon_x(dt=parameters["dt"], lam=parameters["lam"], F=Fi,
-                         OT_up=OT_up, OT_down=OT_down, C=Ci, Nneuron=parameters["Nneuron"],Ntime=duration, Thresh=parameters["Thresh"])
+                         OT_up=OT_up, OT_down=OT_down, C=Ci, Nneuron=parameters["Nneuron"],Ntime=duration, Thresh=parameters["Thresh"], x = x)
 
 coordinates = np.nonzero(OT)
 

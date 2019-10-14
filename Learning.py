@@ -83,6 +83,13 @@ def Learning(utils, F, C):
     delta_Omega = np.zeros(C.shape)
     # Keep track of how many times C[:,k] was updated
     ks = np.zeros(C.shape[1])
+    # Reconstructed voltage using v_r(t) = F.T*x(t) + Omega*r(t-1)
+    Vs = np.zeros((utils.Nneuron, utils.Ntime))
+    V_recons = np.zeros((utils.Nneuron, utils.Ntime))
+    V_recon = np.zeros((utils.Nneuron, 1))
+    new_V_recon = np.zeros((utils.Nneuron, 1)) # Temporary storage for the new V_recon
+    # Store the current threshold
+    current_thresh = np.zeros((utils.Nneuron, 1))
 
     V = np.zeros((utils.Nneuron, 1))
 
@@ -133,7 +140,8 @@ def Learning(utils, F, C):
 
         t = (i % utils.Ntime)
 
-        x = (1-utils.lam*utils.dt)*x + utils.dt*Input[:, t].reshape((-1,1)) #! Removed (i % Ntime)+1 the +1 for indexing
+        # Filter the signal to get smaller scale
+        x = (1-utils.lam*utils.dt)*x + utils.dt*Input[:, t].reshape((-1,1))
 
         ot = np.asarray([OT_up[0,t], OT_down[0,t], OT_up[1,t], OT_down[1,t]]).reshape((-1,1))
         I = (1-x_recon_lam)*I + x_recon_R*ot
@@ -141,14 +149,28 @@ def Learning(utils, F, C):
         FTMI = np.matmul(np.matmul(F.T, M), I)
 
         V = (1-utils.lam*utils.dt)*V + delta_F*FTMI.reshape((-1,1)) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)        
+        Vs[:,t] = V.ravel()
+        V_recons[:,t] = V_recon.ravel()
 
-        (m, k) = my_max(V - utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)) # Returns maximum and argmax
+        current_thresh = utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)
+
+        # Update the reconstructed voltage using V_recon = F.T*x(t) + Omega*r(t-1)
+        new_V_recon = 0.1*V_recon + np.matmul(F.T, x) + np.matmul(C, r0)
+        (m, k) = my_max(new_V_recon - current_thresh) # Returns maximum and argmax
+        #new_V_recon = FTMI + np.matmul(C, r0)
+
+        # Do the integration reset of the reconstructed voltage
+        for i in range(utils.Nneuron):
+            diff = V_recon[i] - new_V_recon[i]
+            if(diff > utils.Thresh - 0.05):
+                V_recon[i] = current_thresh[i] - diff
 
         if (m >= 0): # We have a spike
             O = 1
             # F[:,k] = (F[:,k].reshape((-1,1)) + utils.epsf*(utils.alpha*x - F[:,k].reshape((-1,1)))).ravel()
-            tmp = (utils.epsr*(utils.beta*(V + utils.mu*r0) + C[:,k].reshape((-1,1)) + utils.mu*Id[:,k].reshape((-1,1)))).ravel()
-            # C[:,k] = (C[:,k].reshape((-1,1)) - tmp.reshape((-1,1))).ravel()
+            #tmp = (utils.epsr*(utils.beta*(V + utils.mu*r0) + C[:,k].reshape((-1,1)) + utils.mu*Id[:,k].reshape((-1,1)))).ravel()
+            # Update using the reconstructed voltage V_recon(t-1)
+            tmp = (utils.epsr*(utils.beta*(new_V_recon + utils.mu*r0) + C[:,k].reshape((-1,1)) + utils.mu*Id[:,k].reshape((-1,1)))).ravel()
             delta_Omega[:,k] =  delta_Omega[:,k] + tmp
             ks[k] += 1
             r0[k] = r0[k] + 1
@@ -156,6 +178,9 @@ def Learning(utils, F, C):
             O = 0
         
         r0 = (1-utils.lam*utils.dt)*r0
+
+        # Assign the new reconstructed voltage
+        V_recon = np.copy(new_V_recon) #! Try w/o copy
 
 
     print("Learning complete")
@@ -182,7 +207,7 @@ def Learning(utils, F, C):
     print(("Computing %d decoders" % utils.T))
 
     for i in range(utils.T):
-        (rOL,_,_) = runnet_recon_x(utils.dt, utils.lam, Fs[i,:,:], OT_upL, OT_downL, Cs[i,:,:], utils.Nneuron, TimeL, utils.Thresh, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
+        (rOL,_,_) = runnet_recon_x(utils.dt, utils.lam, Fs[i,:,:], OT_upL, OT_downL, Cs[i,:,:], utils.Nneuron, TimeL, utils.Thresh, xL, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
         Dec = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T # Returns solution that solves xL = Dec*r0L
         Decs[i,:,:] = Dec
 
@@ -208,7 +233,7 @@ def Learning(utils, F, C):
             xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*InputT[:,t-1]
 
         for i in range(utils.T):
-            (rOT, OT, VT) = runnet_recon_x(utils.dt, utils.lam, Fs[i,:,:], OT_upT, OT_downT, Cs[i,:,:], utils.Nneuron, TimeT, utils.Thresh, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
+            (rOT, OT, VT) = runnet_recon_x(utils.dt, utils.lam, Fs[i,:,:], OT_upT, OT_downT, Cs[i,:,:], utils.Nneuron, TimeT, utils.Thresh, xT, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
             xestc = np.matmul(Decs[i,:,:], rOT) # Decode the rate vector
             Error[0,i] = Error[0,i] + np.sum(np.var(xT-xestc, axis=1, ddof=1)) / (np.sum(np.var(xT, axis=1, ddof=1))*Trials)
             MeanPrate[0,i] = MeanPrate[0,i] + np.sum(OT) / (TimeT*utils.dt*utils.Nneuron*Trials)
