@@ -35,7 +35,6 @@ class SBSController():
             self.parameters = json.load(f)
         self.num_neurons = self.parameters["Nneuron"]
         self.C = np.ones((self.num_neurons, self.num_neurons)) # Initialized to 0
-        self.delta_C = np.ones((self.num_neurons, self.num_neurons)) # Initialized to 0
         
         try:
             print("RPYC: OK")
@@ -249,7 +248,7 @@ class SBSController():
                     pop_neur_list.append(self.population[j])
                     if(self.F[j,i] > 0):
                         syn_list.append(self.SynTypes.FAST_EXC)
-                    else:
+                    elif(self.F[j,i] < 0):
                         syn_list.append(self.SynTypes.FAST_INH)
 
         self.connector.add_connection_from_list(vn_list, pop_neur_list, syn_list)
@@ -259,7 +258,29 @@ class SBSController():
     Pre: self.C must be discretized and have data type integer. It shall hold new value of C_disc
     """
     def set_reccurent_connection(self):
-        
+
+        print("Before")
+        tmp = self.population[0].get_cams()
+        for cc in tmp:
+            print(cc.get_pre_neuron_id())
+
+        for n in self.population:
+            self.connector.remove_receiving_connections(n)
+        self.model.apply_diff_state()
+
+        print("Removed")
+        tmp = self.population[0].get_cams()
+        for cc in tmp:
+            print(cc.get_pre_neuron_id())
+
+        self.set_feedforward_connection(self.F)
+        self.model.apply_diff_state()
+
+        print("Added")
+        tmp = self.population[0].get_cams()
+        for cc in tmp:
+            print(cc.get_pre_neuron_id())
+
         pop_neur_source_list = []; pop_neur_target_list = []; syn_list = []
         # Rows in Omega are the targets and columns are source. C(i,j) is the weight from j -> i
         for i in range(self.num_neurons):
@@ -271,9 +292,10 @@ class SBSController():
                         pop_neur_target_list.append(self.population[i])
                         if(self.C[i,j] > 0):
                             syn_list.append(self.SynTypes.FAST_EXC)
-                        else:
+                        elif(self.C[i,j] < 0):
                             syn_list.append(self.SynTypes.FAST_INH)
-
+        
+        print("Added %d connections" % len(pop_neur_source_list))
 
         self.connector.add_connection_from_list(pop_neur_source_list, pop_neur_target_list, syn_list)
         self.model.apply_diff_state()
@@ -337,7 +359,6 @@ class SBSController():
                 total_num_used = np.sum(np.abs(C_new_discrete))
                 print("Number used %d / %d" % (total_num_used, self.num_neurons*number_available))
         # TODO Necessary copy?
-        self.delta_C = self.C - C_new_discrete # Since C(t) = C(t-1) - delta_C <-> delta_C = C(t-1) - C(t)
         self.C = np.copy(C_new_discrete)
     
     def compile_preloaded_stimulus(self, dummy_neuron_id = 255):
