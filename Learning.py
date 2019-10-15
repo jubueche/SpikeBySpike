@@ -66,8 +66,6 @@ def Learning(utils, F, C):
 
     TotTime = utils.Nit*utils.Ntime
 
-    spiking_input_v_cont_old = np.zeros((utils.Nneuron,))
-
     Fi = np.copy(F)
     Ci = np.copy(C)
 
@@ -156,8 +154,8 @@ def Learning(utils, F, C):
 
         # Update the reconstructed voltage using V_recon = F.T*x(t) + Omega*r(t-1)
         new_V_recon = 0.1*V_recon + np.matmul(F.T, x) + np.matmul(C, r0)
+        # new_V_recon = 0.1*V_recon + FTMI + np.matmul(C, r0)
         (m, k) = my_max(new_V_recon - current_thresh) # Returns maximum and argmax
-        #new_V_recon = FTMI + np.matmul(C, r0)
 
         # Do the integration reset of the reconstructed voltage
         for i in range(utils.Nneuron):
@@ -188,7 +186,7 @@ def Learning(utils, F, C):
         
     ########## Compute the optimal decoder ##########
 
-    TimeL = 50000
+    TimeL = 5000 #50000 #! Was 50k
     xL = np.zeros((utils.Nx, TimeL))
     Decs = np.zeros([utils.T, utils.Nx, utils.Nneuron])
 
@@ -212,13 +210,13 @@ def Learning(utils, F, C):
         Decs[i,:,:] = Dec
 
     print("Computing the errors")
-    TimeT = 10000
+    TimeT = 1000 #! Was 10000
     MeanPrate = np.zeros((1,utils.T))
     Error = np.zeros((1,utils.T))
     MembraneVar = np.zeros((1,utils.T))
     xT = np.zeros((utils.Nx, TimeT))
 
-    Trials = 5
+    Trials = 2
 
     for r in range(Trials):
         InputT = utils.A*(np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), TimeT)).T

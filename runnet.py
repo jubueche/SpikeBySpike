@@ -32,7 +32,7 @@ def runnet_recon_x(dt, lam, F, OT_up, OT_down, C, Nneuron, Ntime, Thresh, x, x_r
         ot = np.asarray([OT_up[0,t], OT_down[0,t], OT_up[1,t], OT_down[1,t]]).reshape((-1,1))
         
         # V[:,t] = ((1-lam*dt)*V[:,t-1].reshape((-1,1)) + delta_F*FTMI.reshape((-1,1)) + np.matmul(C, O[:,t-1].reshape((-1,1))) + 0.001*np.random.randn(Nneuron,1)).ravel()
-        V[:,t] = 0.1*V[:,t-1] + np.matmul(F.T, x[:,t]) + np.matmul(C, r0[:,t-1])
+        V[:,t] = 0.1*V[:,t-1] + np.matmul(F.T, x[:,t]) + np.matmul(C, r0[:,t-1]) + 0.001*np.random.randn(Nneuron,1).ravel()
 
 
         I = (1-x_recon_lam)*I + x_recon_R*ot

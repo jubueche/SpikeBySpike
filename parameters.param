@@ -16,5 +16,7 @@
     "A" : 2000,
     "delta_modulator_threshold": 63,
     "R": 1000,
-    "dynapse_maximal_synapse": 10
+    "dynapse_maximal_synapse": 2,
+    "dynapse_maximal_synapse_ff": 10,
+    "dynapse_maximal_synapse_o": 5
 }

@@ -6,7 +6,7 @@ import os
 import json
 from plotting import *
 
-TRAINING = False
+TRAINING = True
 
 #! TODO: - Improve network behaviour on DYNAPS, find best hyperparams by computing rate vectors and computing the covariance
 #!       - Omit all weights except one and compare spike trains with spiking input   
@@ -62,6 +62,14 @@ if(TRAINING):
     FtM.dump(os.path.join(os.getcwd(), "DYNAPS/Resources/DYNAPS_F.dat"))
 
     results = Learning(utils, F_initial, C_initial)
+
+    Cs = results["Cs"]
+    for i in range(Cs.shape[0]):
+        C = Cs[i,:,:]
+        for j in range(C.shape[0]):
+            C[j,j] = 0.0
+        print(min(C.ravel()))
+        print(max(C.ravel()))
 
     ########## Dump the important files to Resources folder ##########
     for key in results:

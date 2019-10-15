@@ -7,7 +7,7 @@ from helper import signal_to_spike_refractory
 class Utils:
 
     def __init__(self, Nneuron, Nx, lam, dt, epsr, epsf, alpha, beta, mu, gamma, Thresh, Nit, Ntime, A, sigma,
-                delta_modulator_threshold, R, dynapse_maximal_synapse):
+                delta_modulator_threshold, R, dynapse_maximal_synapse, dynapse_maximal_synapse_ff, dynapse_maximal_synapse_o):
         self.Nneuron = Nneuron
         self.Nx = Nx
         self.lam = lam
@@ -27,6 +27,8 @@ class Utils:
         self.delta_modulator_threshold = delta_modulator_threshold
         self.R = R
         self.dynapse_maximal_synapse = dynapse_maximal_synapse
+        self.dynapse_maximal_synapse_ff = dynapse_maximal_synapse_ff
+        self.dynapse_maximal_synapse_o = dynapse_maximal_synapse_o
 
 
     @classmethod
@@ -36,7 +38,9 @@ class Utils:
                 mu=dict["mu"], gamma=dict["gamma"], Thresh=dict["Thresh"], Nit=dict["Nit"],
                 Ntime=dict["Ntime"], A=dict["A"], sigma=dict["sigma"],
                 delta_modulator_threshold=dict["delta_modulator_threshold"], R=dict["R"],
-                dynapse_maximal_synapse=dict["dynapse_maximal_synapse"])
+                dynapse_maximal_synapse=dict["dynapse_maximal_synapse"],
+                dynapse_maximal_synapse_ff=dict["dynapse_maximal_synapse_ff"],
+                dynapse_maximal_synapse_o=dict["dynapse_maximal_synapse_o"],)
 
     def continous_to_spikes(self, x):
         ups = []; downs = []
