@@ -43,14 +43,8 @@ def Learning(sbs, utils, F, FtM, C):
 
     j = 1; l = 1
 
-    #print(("%d percent of learning done" % 0))
-
     bar = ChargingBar('Learning', max=TotTime-1)
     for i in range(2, TotTime):
-
-        """if((i/TotTime) > (l/100)):
-            print(("%d percent of learning done" % l))
-            l = l+1"""
 
         if((i % 2**j) == 0): # Save the matrices on an exponential scale
             Cs[j-1,:,:] = C # Indexing starts at 0
@@ -81,7 +75,7 @@ def Learning(sbs, utils, F, FtM, C):
             for i in range(delta_Omega.shape[1]): # First transform each column
                 if(ks[i] > 0):
                     delta_Omega[:,i] /= ks[i]
-            sbs.stochastic_round(C_real=np.copy(C), delta_C_real=np.copy(delta_Omega), weight_range=(-0.4,0.4), debug=True)
+            sbs.set_omega_stochastic_round(C_real=np.copy(C), delta_C_real=np.copy(delta_Omega), weight_range=(-0.4,0.4), stochastic=True, debug=False)
             # Do the update
             C = C - delta_Omega
             # Reset
@@ -99,7 +93,12 @@ def Learning(sbs, utils, F, FtM, C):
                 R[:,t] = (1-utils.lam*utils.dt)*r_tmp
             # 8)
             for t in range(1, utils.Ntime):
+                current_thresh = utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)
                 new_V_recon = 0.1*V_recons[:,t-1] + np.matmul(F.T, X[:,t]) + np.matmul(C, R[:,t-1])
+                """for i in range(utils.Nneuron):
+                    diff = V_recons[i,t-1] - new_V_recon[i]
+                    if(diff > utils.Thresh - 0.05):
+                        V_recons[i,t-1] = current_thresh[i] - diff"""
                 #! We are doing updates for every neuron that spiked
                 neurons_that_spiked = np.nonzero(O_DYNAPS[:,t])[0]
                 for k in neurons_that_spiked:

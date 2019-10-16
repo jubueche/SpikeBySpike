@@ -6,7 +6,10 @@ def runnet(sbs, utils, F, C, duration, x, x_recon_lam = 0.001, x_recon_R = 1.0, 
     R = np.zeros((utils.Nneuron, duration))
     V_recons = np.zeros((utils.Nneuron, duration))
 
-    sbs.set_reccurent_connection(np.copy(C), discretized = False)
+    # Set the matrix C by using a delta of 0
+    sbs.set_omega_stochastic_round(C_real=np.copy(C), delta_C_real=np.zeros(C.shape), weight_range=(-0.4,0.4), stochastic=False, debug=False)
+    sbs.set_reccurent_connection()
+
     O_DYNAPS = sbs.execute()
 
     for t in range(1, duration):

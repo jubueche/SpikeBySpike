@@ -136,7 +136,20 @@ class SBSController():
         times = np.asarray(self.recorded_events[:,1] / 1000, dtype=int)
         neuron_ids = self.recorded_events[:,0]-min(self.population_ids) # Starting at 0
         O_DYNAPS = np.zeros((self.num_neurons, self.signal_length))
+
+        if(max(times) >= self.signal_length):
+            neuron_ids = [ni for (idx,ni) in enumerate(neuron_ids) if times[idx] < self.signal_length]
+            times = [t for t in times if t < self.signal_length]
+
         O_DYNAPS[neuron_ids, times] = 1
+
+
+        """coordinates = np.nonzero(O_DYNAPS)
+        plt.figure(figsize=(18, 6))
+        plt.scatter(coordinates[1], coordinates[0]+1, marker='o', s=0.5, c='k')
+        plt.ylim((0,self.num_neurons+1))
+        plt.yticks(ticks=np.linspace(0,self.num_neurons,int(self.num_neurons/2)+1))
+        plt.show()"""
 
         return O_DYNAPS
 
@@ -206,7 +219,7 @@ class SBSController():
         self.signal_length = x.shape[1]
         ups = []; downs = []
         for i in range(x.shape[0]):
-                tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), x[i,:], 0.01*self.parameters["delta_modulator_threshold"], 0.01*self.parameters["delta_modulator_threshold"], 0.0001)
+                tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), x[i,:], 0.001*self.parameters["delta_modulator_threshold"], 0.01*self.parameters["delta_modulator_threshold"], 0.0001)
                 ups.append(np.asarray(tmp[0]))
                 downs.append(np.asarray(tmp[1]))
 
@@ -259,27 +272,12 @@ class SBSController():
     """
     def set_reccurent_connection(self):
 
-        print("Before")
-        tmp = self.population[0].get_cams()
-        for cc in tmp:
-            print(cc.get_pre_neuron_id())
-
         for n in self.population:
             self.connector.remove_receiving_connections(n)
         self.model.apply_diff_state()
 
-        print("Removed")
-        tmp = self.population[0].get_cams()
-        for cc in tmp:
-            print(cc.get_pre_neuron_id())
-
         self.set_feedforward_connection(self.F)
         self.model.apply_diff_state()
-
-        print("Added")
-        tmp = self.population[0].get_cams()
-        for cc in tmp:
-            print(cc.get_pre_neuron_id())
 
         pop_neur_source_list = []; pop_neur_target_list = []; syn_list = []
         # Rows in Omega are the targets and columns are source. C(i,j) is the weight from j -> i
@@ -294,8 +292,6 @@ class SBSController():
                             syn_list.append(self.SynTypes.FAST_EXC)
                         elif(self.C[i,j] < 0):
                             syn_list.append(self.SynTypes.FAST_INH)
-        
-        print("Added %d connections" % len(pop_neur_source_list))
 
         self.connector.add_connection_from_list(pop_neur_source_list, pop_neur_target_list, syn_list)
         self.model.apply_diff_state()
@@ -307,9 +303,9 @@ class SBSController():
         round_func = math.ceil if is_up else math.floor
         return sign * round_func(x)
 
-    def stochastic_round(self, C_real, delta_C_real, weight_range=(-0.4,0.4), debug = False):
+    def set_omega_stochastic_round(self, C_real, delta_C_real, weight_range=(-0.4,0.4), stochastic = False, debug = False):
         """
-        Given: C_real:       The recurrent connection matrix from the simulation
+        Given: C_real:    The recurrent connection matrix from the simulation
             delta_C_real: The delta of the recurrent connection matrix from the simulation
             weight_range: The range of the recurrent weights. These values are obtained from a previously run simulation
         """
@@ -320,17 +316,21 @@ class SBSController():
         # Scale the new weights with respect to the range
         C_new_discrete = np.zeros(C_real.shape)
         for i in range(self.num_neurons):
-            C_new_discrete[:,i] = C_new_real[:,i] / (weight_range[1] - weight_range[0]) * 2*self.parameters["dynapse_maximal_synapse_o"]    
+            divisor = max(C_new_real[:,i]) - min(C_new_real[:,i])
+            #C_new_discrete[:,i] = C_new_real[:,i] / (weight_range[1] - weight_range[0]) * 2*self.parameters["dynapse_maximal_synapse_o"]    
+            if(divisor != 0):
+                C_new_discrete[:,i] = C_new_real[:,i] / divisor* 2*self.parameters["dynapse_maximal_synapse_o"]
 
-        for i in range(self.num_neurons):
-            for j in range(C_real.shape[0]):
-                C_new_discrete[i,j] = self.prob_round(C_new_discrete[i,j])
+        if(stochastic):
+            for i in range(self.num_neurons):
+                for j in range(C_real.shape[0]):
+                    C_new_discrete[i,j] = self.prob_round(C_new_discrete[i,j])
         
         C_new_discrete = C_new_discrete.astype(np.int)
 
         # Number of neurons available should be equal for every neuron. Otherwise we would artifically increase the weight
         # of some neurons
-        number_available = 64 - max(np.sum(np.abs(self.F), axis=1))
+        number_available = 60 - max(np.sum(np.abs(self.F), axis=1))
         if(debug):
             print("Number available per neuron %d" % number_available)
 
@@ -358,6 +358,15 @@ class SBSController():
                 print(C_new_discrete[:,0])
                 total_num_used = np.sum(np.abs(C_new_discrete))
                 print("Number used %d / %d" % (total_num_used, self.num_neurons*number_available))
+
+        for i in range(self.num_neurons):
+            number_used = np.sum(np.abs(C_new_discrete[i,:]))
+            while(number_used > number_available):
+                C_new_discrete[i, C_new_discrete[i,:] > 0] -= 1
+                C_new_discrete[i, C_new_discrete[i,:] < 0] += 1
+                number_used = np.sum(np.abs(C_new_discrete[i,:]))
+                
+
         # TODO Necessary copy?
         self.C = np.copy(C_new_discrete)
     
@@ -393,10 +402,3 @@ class SBSController():
         plt.savefig("Resources/DYNAPS_initial_spikes.png")
         plt.show()
 
-    def discretize_C(self, C):
-        for i in range(self.num_neurons):
-            C[i,i] = 0.0
-            divisor = (max(C[i,:]) - min(C[i,:]))
-            if(divisor != 0):
-                C[i,:] = C[i,:] / divisor*2*self.parameters["dynapse_maximal_synapse_o"]
-        return C

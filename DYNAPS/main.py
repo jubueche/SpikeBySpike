@@ -28,6 +28,7 @@ def clean_up_conn(sbs):
 
     sbs.c.close()
 
+
 self_path = sbs_dynapse_controller.__file__
 self_path = self_path[0:self_path.rfind('/')]
 
@@ -43,7 +44,7 @@ np.random.seed(42)
 
 resources = os.path.join(os.getcwd(), "Resources/DYNAPS")
 if(not os.path.exists(resources)):
-    os.mkdir(resources)
+    os. mkdir(resources)
 
 if(TRAINING):
     M = np.asarray([[1, -1, 0, 0], [0, 0, 1, -1]])
@@ -61,8 +62,6 @@ if(TRAINING):
         FtM[:,i] = FtM[:,i] / (max(FtM[:,i]) - min(FtM[:,i])) * 2*utils.dynapse_maximal_synapse_ff
     FtM = np.asarray(FtM, dtype=int)
 
-    print(FtM)
-
     try:
         results = Learning(sbs, utils, F, FtM, C_initial)
         for key in results:
@@ -74,3 +73,8 @@ if(TRAINING):
     except Exception:
         traceback.print_exc()
         clean_up_conn(sbs)
+    except KeyboardInterrupt:
+        clean_up_conn(sbs)
+    except:
+        clean_up_conn(sbs)
+        print("Cleaned up connections.")

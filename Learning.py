@@ -84,6 +84,7 @@ def Learning(utils, F, C):
     # Reconstructed voltage using v_r(t) = F.T*x(t) + Omega*r(t-1)
     Vs = np.zeros((utils.Nneuron, utils.Ntime))
     V_recons = np.zeros((utils.Nneuron, utils.Ntime))
+    Rs = np.zeros((utils.Nneuron, utils.Ntime))
     V_recon = np.zeros((utils.Nneuron, 1))
     new_V_recon = np.zeros((utils.Nneuron, 1)) # Temporary storage for the new V_recon
     # Store the current threshold
@@ -176,6 +177,7 @@ def Learning(utils, F, C):
             O = 0
         
         r0 = (1-utils.lam*utils.dt)*r0
+        Rs[:,t] = r0.ravel()
 
         # Assign the new reconstructed voltage
         V_recon = np.copy(new_V_recon) #! Try w/o copy
