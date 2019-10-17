@@ -1,17 +1,21 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from DYNAPS_runnet import runnet
+from DYNAPS_runnet import runnet, my_max
 from progress.bar import ChargingBar
 
-def Learning(sbs, utils, F, FtM, C):
+def Learning(sbs, utils, F, FtM, C, debug = False):
     print("Setting FF...")
-    sbs.set_feedforward_connection(FtM)
+
+    sbs.F = np.copy(FtM)
     
     # Total training time
     TotTime = utils.Nit*utils.Ntime
     # Copy the initial recurrent weights
     Ci = np.copy(C)
     Cs = np.zeros([utils.T, utils.Nneuron, utils.Nneuron]) # Store the recurrent weights over the course of training
+    Cs_discrete = np.zeros([utils.T, utils.Nneuron, utils.Nneuron])
+    C_current_discrete = np.zeros(Ci.shape)
+
 
     x_recon_lam = 0.001
     x_recon_R = 1.0
@@ -26,7 +30,6 @@ def Learning(sbs, utils, F, FtM, C):
     # Store the current threshold
     current_thresh = np.zeros((utils.Nneuron, 1))
 
-    O = 0
     k = 0
 
     # Computed rates over course of one signal
@@ -41,14 +44,15 @@ def Learning(sbs, utils, F, FtM, C):
     w = (1/(utils.sigma*np.sqrt(2*np.pi)))* np.exp(-((np.linspace(1,1000,1000)-500)**2)/(2*utils.sigma**2))
     w = w / np.sum(w)
 
-    j = 1; l = 1
+    j = 1
+
+    Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), utils.Ntime)).T
+    for d in range(utils.Nx):
+        Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
 
     bar = ChargingBar('Learning', max=TotTime-1)
     for i in range(2, TotTime):
 
-        if((i % 2**j) == 0): # Save the matrices on an exponential scale
-            Cs[j-1,:,:] = C # Indexing starts at 0
-            j = j+1
 
         """
         1) Get new input
@@ -62,55 +66,57 @@ def Learning(sbs, utils, F, FtM, C):
            and accumulate delta Omega.
         """
         if(((i-2) % utils.Ntime) == 0):
-            Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), utils.Ntime)).T
+            """Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), utils.Ntime)).T
             for d in range(utils.Nx):
-                Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
+                Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')"""
 
             # 2)
+            X = np.zeros(X.shape)
             for t in range(1, utils.Ntime):
                 X[:,t] = (1-utils.lam*utils.dt)*X[:,t-1] + utils.dt*Input[:, t]
             # 3)
-            sbs.load_signal(X)
+            sbs.load_signal(np.copy(X))
             # 4)
             for i in range(delta_Omega.shape[1]): # First transform each column
                 if(ks[i] > 0):
                     delta_Omega[:,i] /= ks[i]
-            sbs.set_omega_stochastic_round(C_real=np.copy(C), delta_C_real=np.copy(delta_Omega), weight_range=(-0.4,0.4), stochastic=True, debug=False)
+            C_current_discrete = sbs.set_omega_stochastic_round(C_real=np.copy(C), delta_C_real=np.copy(delta_Omega), stochastic=False)
+            # 5)
+            sbs.set_recurrent_connection()
             # Do the update
-            C = C - delta_Omega
+            C = C - np.copy(delta_Omega)
             # Reset
             ks = np.zeros(delta_Omega.shape[1])
             delta_Omega = np.zeros(C.shape)
-            # 5)
-            sbs.set_reccurent_connection()
             # 6)
             O_DYNAPS = sbs.execute()
             # 7) #! In the simulation, we only update the rate vec at one point per time step
             for t in range(1, utils.Ntime):
                 neurons_that_spiked = np.nonzero(O_DYNAPS[:,t])[0]
                 r_tmp = R[:,t-1]
-                r_tmp[neurons_that_spiked] += np.ones(len(neurons_that_spiked)) 
+                r_tmp[neurons_that_spiked] += np.ones(len(neurons_that_spiked))
                 R[:,t] = (1-utils.lam*utils.dt)*r_tmp
             # 8)
             for t in range(1, utils.Ntime):
                 current_thresh = utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)
                 new_V_recon = 0.1*V_recons[:,t-1] + np.matmul(F.T, X[:,t]) + np.matmul(C, R[:,t-1])
-                """for i in range(utils.Nneuron):
-                    diff = V_recons[i,t-1] - new_V_recon[i]
-                    if(diff > utils.Thresh - 0.05):
-                        V_recons[i,t-1] = current_thresh[i] - diff"""
-                #! We are doing updates for every neuron that spiked
-                neurons_that_spiked = np.nonzero(O_DYNAPS[:,t])[0]
-                for k in neurons_that_spiked:
+                (m, k) = my_max(new_V_recon.reshape((-1,1)) - current_thresh) # Returns maximum and argmax
+                if(m[0] >= 0):
                     tmp = utils.epsr*(utils.beta*(new_V_recon + utils.mu*R[:,t-1]) + C[:,k] + utils.mu*Id[:,k])
                     delta_Omega[:,k] += tmp
                     ks[k] += 1
                 V_recons[:,t] = np.copy(new_V_recon) #! Check if copy necessary
+            
+        if((i % 2**j) == 0): # Save the matrices on an exponential scale
+            Cs[j-1,:,:] = np.copy(C) # Indexing starts at 0
+            Cs_discrete[j-1,:,:] = np.copy(C_current_discrete)
+            j = j+1
         bar.next()
     bar.next()
     bar.finish()
-                
-    print("Learning complete.")
+
+    Cs_discrete[utils.T-1,:,:] = np.copy(C_current_discrete)
+    Cs[utils.T-1,:,:] = np.copy(C)
 
     ########## Compute the optimal decoder ##########
     TimeL = 5000 #! Change to 50000, really? Would take 8 min for one decoder.
@@ -134,7 +140,7 @@ def Learning(sbs, utils, F, FtM, C):
 
     bar = ChargingBar('Decoders', max=utils.T)
     for i in range(utils.T):
-        (rOL,_,_) = runnet(sbs, utils, F, Cs[i,:,:], TimeL, xL, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
+        (rOL,_,_) = runnet(sbs, utils, F, Cs_discrete[i,:,:], TimeL, xL, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
         Dec = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T # Returns solution that solves xL = Dec*r0L
         Decs[i,:,:] = Dec
         bar.next()
@@ -148,7 +154,6 @@ def Learning(sbs, utils, F, FtM, C):
     xT = np.zeros((utils.Nx, TimeT))
 
     Trials = 2
-
     for r in range(Trials):
         InputT = utils.A*(np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), TimeT)).T
 
@@ -160,11 +165,11 @@ def Learning(sbs, utils, F, FtM, C):
             xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*InputT[:,t-1]
         
         # Load the input
-        sbs.load_signal(xT)
+        sbs.load_signal(np.copy(xT))
 
         bar = ChargingBar(('Error #%d' % r), max=utils.T)
         for i in range(utils.T):
-            (rOT, OT, VT) = runnet(sbs, utils, F, Cs[i,:,:], TimeT, xT, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
+            (rOT, OT, VT) = runnet(sbs, utils, F, Cs_discrete[i,:,:], TimeT, xT, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
             xestc = np.matmul(Decs[i,:,:], rOT) # Decode the rate vector
             Error[0,i] = Error[0,i] + np.sum(np.var(xT-xestc, axis=1, ddof=1)) / (np.sum(np.var(xT, axis=1, ddof=1))*Trials)
             MeanPrate[0,i] = MeanPrate[0,i] + np.sum(OT) / (TimeT*utils.dt*utils.Nneuron*Trials)

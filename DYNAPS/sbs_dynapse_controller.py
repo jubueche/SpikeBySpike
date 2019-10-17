@@ -34,7 +34,7 @@ class SBSController():
         with open(os.path.join(os.getcwd(), "../parameters.param"), 'r') as f:
             self.parameters = json.load(f)
         self.num_neurons = self.parameters["Nneuron"]
-        self.C = np.ones((self.num_neurons, self.num_neurons)) # Initialized to 0
+        self.C = np.zeros((self.num_neurons, self.num_neurons)).astype(np.int) # Initialized to 0
         
         try:
             print("RPYC: OK")
@@ -79,52 +79,27 @@ class SBSController():
         
         
     @classmethod
-    def from_default(self, clear_cam = True):
+    def from_default(self, clear_cam = True, debug = False):
         c = rpyc.classic.connect("localhost", 1300)
         RPYC_TIMEOUT = 300 #defines a higher timeout
         c._config["sync_request_timeout"] = RPYC_TIMEOUT  # Set timeout to higher level
 
-        return SBSController(start_neuron=1, chip_id=1, c=c, core_id=0, debug=True, clear_cam = clear_cam)
-        
-    def run_single_trial(self, plot_raster=False):
-        """
-        Runs a single input iteration and records the activity in the population.
-        Optionally plots the recorded raster.
-        
-        """
-        self.evt_filter = self.c.modules.CtxDynapse.BufferedEventFilter(self.model, self.population_ids)
-        self.c.modules.CtxDynapse.dynapse.reset_timestamp()
-        evts = self.evt_filter.get_events()
-        self.spikegen.start()
-        print("Running the trial...")
-        sleep_time = self.spike_times[-1,1] / (1e+6)
-        sleep(sleep_time)
-        evts = self.evt_filter.get_events()
-        self.spikegen.stop()
-        print("Trial finished")
-        print("Binning the spikes")
-        
-        recorded_events = []
-        
-        if len(evts) != 0:
-            for evt in evts:
-                recorded_events.append([evt.neuron.get_id(), evt.timestamp])
-                
-        self.recorded_events = np.array(recorded_events)
-        
-        if plot_raster == True:
-            self.plot_raster()
+        return SBSController(start_neuron=1, chip_id=1, c=c, core_id=0, debug=debug, clear_cam = clear_cam)
+
 
     def execute(self):
 
         self.evt_filter = self.c.modules.CtxDynapse.BufferedEventFilter(self.model, self.population_ids)
         self.c.modules.CtxDynapse.dynapse.reset_timestamp()
         evts = self.evt_filter.get_events()
+        
         self.spikegen.start()
         sleep_time = self.spike_times[-1,1] / (1e+6)
         sleep(sleep_time)
         evts = self.evt_filter.get_events()
         self.spikegen.stop()
+
+        self.evt_filter.clear()
         
         recorded_events = []
         
@@ -135,23 +110,23 @@ class SBSController():
         self.recorded_events = np.array(recorded_events)
         times = np.asarray(self.recorded_events[:,1] / 1000, dtype=int)
         neuron_ids = self.recorded_events[:,0]-min(self.population_ids) # Starting at 0
-        O_DYNAPS = np.zeros((self.num_neurons, self.signal_length))
+        O_DYNAPS_sbs = np.zeros((self.num_neurons, self.signal_length))
 
         if(max(times) >= self.signal_length):
             neuron_ids = [ni for (idx,ni) in enumerate(neuron_ids) if times[idx] < self.signal_length]
             times = [t for t in times if t < self.signal_length]
 
-        O_DYNAPS[neuron_ids, times] = 1
+        O_DYNAPS_sbs[neuron_ids, times] = 1
 
+        if(self.debug):
+            coordinates = np.nonzero(O_DYNAPS_sbs)
+            plt.figure(figsize=(18, 6))
+            plt.scatter(coordinates[1], coordinates[0]+1, marker='o', s=0.5, c='k')
+            plt.ylim((0,self.num_neurons+1))
+            plt.yticks(ticks=np.linspace(0,self.num_neurons,int(self.num_neurons/2)+1))
+            plt.show()
 
-        """coordinates = np.nonzero(O_DYNAPS)
-        plt.figure(figsize=(18, 6))
-        plt.scatter(coordinates[1], coordinates[0]+1, marker='o', s=0.5, c='k')
-        plt.ylim((0,self.num_neurons+1))
-        plt.yticks(ticks=np.linspace(0,self.num_neurons,int(self.num_neurons/2)+1))
-        plt.show()"""
-
-        return O_DYNAPS
+        return O_DYNAPS_sbs
 
     
     
@@ -176,16 +151,16 @@ class SBSController():
         return fpga_events
     
     
-    def spikes_to_isi(self, spike_times, neurons_id, use_microseconds=False):
+    def spikes_to_isi(self, spike_times, n_ids, use_microseconds=False):
         """ Function for coverting an array of spike times and array of corresponding
         neurons to inter spike intervals.
         Args:
             spike_times      (list): list of times. Either in milliseconds or microseconds
-            neurons_id       (list): list of neuron ids. Should have same length as spike_times.
+            n_ids       (list): list of neuron ids. Should have same length as spike_times.
             use_microseconds (Bool): If set to True, will assume that spike_times are in millis.
                                      If set to False, will assume that spike_times are in micro sec.
         Returns:
-            (signal_isi, neurons_id) (Tuple of lists): The signal ISI's and the corresponding neuron ids.
+            (signal_isi, n_ids) (Tuple of lists): The signal ISI's and the corresponding neuron ids.
         """
         signal_isi = []
         for i in range(len(spike_times)):
@@ -200,9 +175,9 @@ class SBSController():
             signal_isi = signal_isi
 
         # Avoid using neuron zero (because all neurons are connected to it)
-        if(0 in neurons_id):
-            neurons_id = neurons_id + 1 
-        return (signal_isi, neurons_id)
+        if(0 in n_ids):
+            n_ids = n_ids + 1 
+        return (signal_isi, n_ids)
     
     def load_spike_gen(self, fpga_events, isi_base, repeat_mode=False):
         """ This loads an FpgaSpikeEvent in the Spike Generator.
@@ -219,38 +194,90 @@ class SBSController():
         self.signal_length = x.shape[1]
         ups = []; downs = []
         for i in range(x.shape[0]):
-                tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), x[i,:], 0.001*self.parameters["delta_modulator_threshold"], 0.01*self.parameters["delta_modulator_threshold"], 0.0001)
-                ups.append(np.asarray(tmp[0]))
-                downs.append(np.asarray(tmp[1]))
+                tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), np.copy(x[i,:]), 0.01*self.parameters["delta_modulator_threshold"], 0.01*self.parameters["delta_modulator_threshold"], 0.0001)
+                ups.append(np.asarray(np.copy(tmp[0])))
+                downs.append(np.asarray(np.copy(tmp[1])))
 
-        self.spikes_up = np.asarray(ups)
-        self.spikes_down = np.asarray(downs)
+        self.spikes_up = np.copy(np.asarray(ups))
+        self.spikes_down = np.copy(np.asarray(downs))
+
+        if(self.debug):
+            duration = self.signal_length
+            plt.figure(figsize=(12, 12))
+
+            plt.subplot(611)
+            plt.title("Signal 1")
+            plt.plot(x[0,:], c='r')
+            plt.xlim((0,duration))
+            plt.subplot(612)
+            plt.plot(ups[0], np.zeros(len(ups[0])), 'o', c='k', markersize=1)
+            plt.xlim((0,duration))
+            plt.subplot(613)
+            plt.plot(downs[0], np.zeros(len(downs[0])), 'o', c='k', markersize=1)
+            plt.xlim((0,duration))
+
+            plt.subplot(614)
+            plt.title("Signal 2")
+            plt.plot(x[1,:], c='r')
+            plt.xlim((0,duration))
+            plt.subplot(615)
+            plt.plot(ups[1], np.zeros(len(ups[1])), 'o', c='k', markersize=1)
+            plt.xlim((0,duration))
+            plt.subplot(616)
+            plt.plot(downs[1], np.zeros(len(downs[1])), 'o', c='k', markersize=1)
+            plt.xlim((0,duration))
+
+            plt.tight_layout()
+            plt.show()
+
 
         self.spike_times = self.compile_preloaded_stimulus(dummy_neuron_id = 255)
         
         # Convert to ISI
-        (signal_isi, neuron_ids) = self.spikes_to_isi(spike_times=self.spike_times[:,1], neurons_id=self.spike_times[:,0], use_microseconds=False)
+        (signal_isi, neuron_ids) = self.spikes_to_isi(spike_times=self.spike_times[:,1], n_ids=self.spike_times[:,0], use_microseconds=False)
 
         # Get the FPGA events
         fpga_events = self.get_fpga_events(signal_isi, neuron_ids)
-        
+        if(self.debug):
+            t = 0
+            sTrain = np.zeros((self.num_neurons, self.signal_length))
+            for evt in fpga_events:
+                if(evt.neuron_id != 255):
+                    cT = t + int(evt.isi / 1000)
+                    sTrain[int(evt.neuron_id-1), cT] = 1
+                    t = cT
+                else:
+                    cT = t + int(evt.isi / 1000)
+            coordinates = np.nonzero(sTrain)
+            plt.scatter(coordinates[1], coordinates[0], marker='o', s=0.5, c='k')
+            plt.show()
+
         # Load spike gen
         self.load_spike_gen(fpga_events=fpga_events, isi_base=self.base_isi, repeat_mode=False)
+        self.model.apply_diff_state()
 
+    def compile_preloaded_stimulus(self, dummy_neuron_id = 255):
+        
+        output_events = []
+        for i in range(self.num_signals):
+            for timestamp in self.spikes_up[i]:
+                output_events.append([self.num_signals*i+1, int(timestamp*1000)])
+            for timestamp in self.spikes_down[i]:
+                output_events.append([self.num_signals*i+2, int(timestamp*1000)])
 
-    def set_feedforward_connection(self, F):
-        self.F = F
-        DWN1_weights = np.copy(self.F[:,1])
-        DWN2_weights = np.copy(self.F[:,3])
-        UP1_weights = np.copy(self.F[:,0])
-        UP2_weights = np.copy(self.F[:,2])
+        output_events.sort(key=operator.itemgetter(1))
+        output_events = np.insert(output_events, 0, [dummy_neuron_id,0], axis = 0)
 
-        # F takes UP1, DWN1, UP2, DWN2
-        # input comes as UP1, UP2, DWN1, DWN2
-        self.F[:,0] = UP1_weights
-        self.F[:,1] = UP2_weights
-        self.F[:,2] = DWN1_weights
-        self.F[:,3] = DWN2_weights 
+        tmp_id = 1
+        while tmp_id < len(output_events):
+            if output_events[tmp_id,1] - output_events[tmp_id-1,1] > self.max_isi:
+                output_events = np.insert(output_events, tmp_id, [dummy_neuron_id,output_events[tmp_id-1,1]+self.max_isi-1], axis = 0)
+            tmp_id += 1
+        
+        return output_events
+
+    def set_feedforward_connection(self, F_disc):
+        self.F = F_disc
 
         vn_list = []; pop_neur_list = []; syn_list = []
 
@@ -270,7 +297,7 @@ class SBSController():
     """
     Pre: self.C must be discretized and have data type integer. It shall hold new value of C_disc
     """
-    def set_reccurent_connection(self):
+    def set_recurrent_connection(self):
 
         for n in self.population:
             self.connector.remove_receiving_connections(n)
@@ -296,14 +323,21 @@ class SBSController():
         self.connector.add_connection_from_list(pop_neur_source_list, pop_neur_target_list, syn_list)
         self.model.apply_diff_state()
 
-    def prob_round(self, x):
-        sign = np.sign(x)
-        x = abs(x)
-        is_up = np.random.random() < x-int(x)
-        round_func = math.ceil if is_up else math.floor
-        return sign * round_func(x)
 
-    def set_omega_stochastic_round(self, C_real, delta_C_real, weight_range=(-0.4,0.4), stochastic = False, debug = False):
+    """
+    Pre: Weight matrix must be discretized and sum of each row must be below maximum number of neurons allowed.
+    """
+    def set_recurrent_weight_directly(self, C_discrete):
+        self.C = np.copy(C_discrete.astype(np.int))
+
+    def prob_round(self, x_local):
+        sign = np.sign(x_local)
+        x_local = abs(x_local)
+        is_up = np.random.random() < x_local-int(x_local)
+        round_func = math.ceil if is_up else math.floor
+        return sign * round_func(x_local)
+
+    def set_omega_stochastic_round(self, C_real, delta_C_real, stochastic = False):
         """
         Given: C_real:    The recurrent connection matrix from the simulation
             delta_C_real: The delta of the recurrent connection matrix from the simulation
@@ -314,10 +348,9 @@ class SBSController():
 
         
         # Scale the new weights with respect to the range
-        C_new_discrete = np.zeros(C_real.shape)
+        C_new_discrete = np.zeros(C_real.shape).astype(np.int) #! Setting this to ones causes the bug
         for i in range(self.num_neurons):
             divisor = max(C_new_real[:,i]) - min(C_new_real[:,i])
-            #C_new_discrete[:,i] = C_new_real[:,i] / (weight_range[1] - weight_range[0]) * 2*self.parameters["dynapse_maximal_synapse_o"]    
             if(divisor != 0):
                 C_new_discrete[:,i] = C_new_real[:,i] / divisor* 2*self.parameters["dynapse_maximal_synapse_o"]
 
@@ -325,26 +358,24 @@ class SBSController():
             for i in range(self.num_neurons):
                 for j in range(C_real.shape[0]):
                     C_new_discrete[i,j] = self.prob_round(C_new_discrete[i,j])
-        
-        C_new_discrete = C_new_discrete.astype(np.int)
 
         # Number of neurons available should be equal for every neuron. Otherwise we would artifically increase the weight
         # of some neurons
         number_available = 60 - max(np.sum(np.abs(self.F), axis=1))
-        if(debug):
+        if(self.debug):
             print("Number available per neuron %d" % number_available)
 
         # How many connections are we using now in total?
         total_num_used = np.sum(np.abs(C_new_discrete))
-        if(debug):
+        if(self.debug):
             print("Number used %d / %d" % (total_num_used, self.num_neurons*number_available))
         difference = total_num_used - number_available*self.num_neurons
-        if(debug):
+        if(self.debug):
             print("Difference is %d" % difference)
 
         # Need to reduce number of connections equally
         if(difference > 0):
-            if(debug):
+            if(self.debug):
                 print(C_new_discrete[:,0])
                 number_to_reduce_per_neuron = int(np.ceil(difference / self.num_neurons**2))
                 print(number_to_reduce_per_neuron)
@@ -354,7 +385,7 @@ class SBSController():
                 
                 difference = np.sum(np.abs(C_new_discrete)) - number_available*C_real.shape[0]
 
-            if(debug):
+            if(self.debug):
                 print(C_new_discrete[:,0])
                 total_num_used = np.sum(np.abs(C_new_discrete))
                 print("Number used %d / %d" % (total_num_used, self.num_neurons*number_available))
@@ -369,26 +400,7 @@ class SBSController():
 
         # TODO Necessary copy?
         self.C = np.copy(C_new_discrete)
-    
-    def compile_preloaded_stimulus(self, dummy_neuron_id = 255):
-        
-        output_events = []
-        for i in range(self.num_signals):
-            for timestamp in self.spikes_up[i]:
-                output_events.append([i+1, int(timestamp*1000)])
-            for timestamp in self.spikes_down[i]:
-                output_events.append([i+2, int(timestamp*1000)])
-          
-        output_events.sort(key=operator.itemgetter(1))
-        output_events = np.insert(output_events, 0, [dummy_neuron_id,0], axis = 0)
-        
-        tmp_id = 1
-        while tmp_id < len(output_events):
-            if output_events[tmp_id,1] - output_events[tmp_id-1,1] > self.max_isi:
-                output_events = np.insert(output_events, tmp_id, [dummy_neuron_id,output_events[tmp_id-1,1]+self.max_isi-1], axis = 0)
-            tmp_id += 1
-            
-        return output_events
+        return np.copy(C_new_discrete)
     
         
     def plot_raster(self):

@@ -158,12 +158,17 @@ def Learning(utils, F, C):
         # new_V_recon = 0.1*V_recon + FTMI + np.matmul(C, r0)
         (m, k) = my_max(new_V_recon - current_thresh) # Returns maximum and argmax
 
+        diff = (new_V_recon - current_thresh)
+        neurons_above = np.linspace(0,utils.Nneuron-1, utils.Nneuron)[diff.ravel() >= 0].astype(np.int)
+
+
         # Do the integration reset of the reconstructed voltage
         for i in range(utils.Nneuron):
             diff = V_recon[i] - new_V_recon[i]
             if(diff > utils.Thresh - 0.05):
                 V_recon[i] = current_thresh[i] - diff
 
+        
         if (m >= 0): # We have a spike
             O = 1
             # F[:,k] = (F[:,k].reshape((-1,1)) + utils.epsf*(utils.alpha*x - F[:,k].reshape((-1,1)))).ravel()
@@ -175,7 +180,7 @@ def Learning(utils, F, C):
             r0[k] = r0[k] + 1
         else:
             O = 0
-        
+            
         r0 = (1-utils.lam*utils.dt)*r0
         Rs[:,t] = r0.ravel()
 
