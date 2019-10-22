@@ -13,6 +13,7 @@ import itertools
 import json
 import os
 import math
+import warnings
 
 import matplotlib.pyplot as plt
 
@@ -35,7 +36,6 @@ class SBSController():
             self.parameters = json.load(f)
         self.num_neurons = self.parameters["Nneuron"]
         self.C = np.zeros((self.num_neurons, self.num_neurons)).astype(np.int) # Initialized to 0
-        self.C_scaled_real = np.zeros((self.num_neurons, self.num_neurons))
         
         try:
             print("RPYC: OK")
@@ -120,13 +120,13 @@ class SBSController():
 
         O_DYNAPS_sbs[neuron_ids, times] = 1
 
-        if(self.debug):
+        """if(self.debug):
             coordinates = np.nonzero(O_DYNAPS_sbs)
             plt.figure(figsize=(18, 6))
             plt.scatter(coordinates[1], coordinates[0]+1, marker='o', s=0.5, c='k')
             plt.ylim((0,self.num_neurons+1))
             plt.yticks(ticks=np.linspace(0,self.num_neurons,int(self.num_neurons/2)+1))
-            plt.show()
+            plt.show()"""
 
         return O_DYNAPS_sbs
 
@@ -192,27 +192,24 @@ class SBSController():
         self.spikegen.set_isi_multiplier(isi_base)
         self.spikegen.set_repeat_mode(repeat_mode)
 
-    def load_signal(self, x, delta_mod_thresh_up=-1, delta_mod_thresh_dwn=-1):
-        self.signal_length = x.shape[1]
+    def load_signal(self, X, delta_mod_thresh_up, delta_mod_thresh_dwn):
+        self.signal_length = X.shape[1]
         ups = []; downs = []
-        for i in range(x.shape[0]):
-            if(delta_mod_thresh_dwn == -1):
-                tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), np.copy(x[i,:]), 0.001*self.parameters["delta_modulator_threshold"], 0.0005*self.parameters["delta_modulator_threshold"], 0.0001)
-            else:
-                tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), np.copy(x[i,:]), delta_mod_thresh_up, delta_mod_thresh_dwn, 0.0001)
+        for i in range(X.shape[0]):
+            tmp = signal_to_spike_refractory(1, np.linspace(0,len(X[i,:])-1,len(X[i,:])), np.copy(X[i,:]), delta_mod_thresh_up, delta_mod_thresh_dwn, 0.0001)
             ups.append(np.asarray(np.copy(tmp[0])))
             downs.append(np.asarray(np.copy(tmp[1])))
 
         self.spikes_up = np.copy(np.asarray(ups))
         self.spikes_down = np.copy(np.asarray(downs))
 
-        if(self.debug):
+        """if(self.debug):
             duration = self.signal_length
             plt.figure(figsize=(12, 12))
 
             plt.subplot(611)
             plt.title("Signal 1")
-            plt.plot(x[0,:], c='r')
+            plt.plot(X[0,:], c='r')
             plt.xlim((0,duration))
             plt.subplot(612)
             plt.plot(ups[0], np.zeros(len(ups[0])), 'o', c='k', markersize=1)
@@ -223,7 +220,7 @@ class SBSController():
 
             plt.subplot(614)
             plt.title("Signal 2")
-            plt.plot(x[1,:], c='r')
+            plt.plot(X[1,:], c='r')
             plt.xlim((0,duration))
             plt.subplot(615)
             plt.plot(ups[1], np.zeros(len(ups[1])), 'o', c='k', markersize=1)
@@ -233,7 +230,7 @@ class SBSController():
             plt.xlim((0,duration))
 
             plt.tight_layout()
-            plt.show()
+            plt.show()"""
 
 
         self.spike_times = self.compile_preloaded_stimulus(dummy_neuron_id = 255)
@@ -301,7 +298,7 @@ class SBSController():
         # Rows in Omega are the targets and columns are source. C(i,j) is the weight from j -> i
         for i in range(self.num_neurons):
             for j in range(self.num_neurons):
-                if(not i == j): # No autapses
+                if(not (i == j)): # No autapses
                     for k in range(abs(self.C[i,j])):
                         # Source: j, Target: i
                         pop_neur_source_list.append(self.population[j])
@@ -319,135 +316,64 @@ class SBSController():
     Pre: Weight matrix must be discretized and sum of each row must be below maximum number of neurons allowed.
     """
     def set_recurrent_weight_directly(self, C_discrete):
+        number_available_per_neuron = 62 - np.sum(np.abs(self.F), axis=1)
+        assert (number_available_per_neuron - np.sum(np.abs(C_discrete), axis=1) >= 0).all(), "More synapses used than available"
         self.C = C_discrete.astype(np.int)
 
-    def prob_round(self, x_local):
-        sign = np.sign(x_local)
-        x_local = abs(x_local)
-        is_up = np.random.random() < x_local-int(x_local)
-        round_func = math.ceil if is_up else math.floor
-        return sign * round_func(x_local)
-
-    def set_omega_stochastic_round(self, C_real, delta_C_real, max_diff = 0.3, stochastic = False):
+    def bin_omega(self, C_real, min=-0.339, max=0.412):
         """
-        Given: C_real:    The recurrent connection matrix from the simulation
-            delta_C_real: The delta of the recurrent connection matrix from the simulation
-            weight_range: The range of the recurrent weights. These values are obtained from a previously run simulation
+        Given: C_real:    Copy of the recurrent connection matrix from the simulation.
+               min:       The min value of the recurrent matrix obtained from the simulations.
+               max:       The max value of the recurrent matrix obtained from the simulations.
+        Returns:          Discretized weight matrix.
         """
-
-        C_new_real = C_real - delta_C_real        
-        np.fill_diagonal(C_new_real, 0)
         
-        #threshold
-        C_new_real[np.abs(C_new_real) < 0.05] = 0
+        np.fill_diagonal(C_real, 0)
 
-        # Initialize
-        if(np.sum(np.abs(self.C_scaled_real)) == 0):
-            # Scale the new weights with respect to the range
-            C_new_discrete = np.zeros(C_real.shape).astype(np.int)
-            for i in range(self.num_neurons):
-                # divisor = max(C_new_real[:,i]) - min(C_new_real[:,i])
-                divisor = max_diff
-                if(divisor != 0):
-                    C_new_discrete[:,i] = C_new_real[:,i] / divisor* 2*self.parameters["dynapse_maximal_synapse_o"]
-                    self.C_scaled_real[:,i] = C_new_real[:,i] / divisor*2*self.parameters["dynapse_maximal_synapse_o"]
+        if(np.min(C_real) < min or np.max(C_real) > max):
+            w = ("Recurrent matrix exceeds minimum or maximum. Max: %.3f, Min: %.3f" % (np.max(C_real),np.min(C_real)))
+            warnings.warn(w, RuntimeWarning)
+        
+        """#threshold
+        C_real[np.abs(C_new_real) < 0.05] = 0"""
+        
+        # All elements that are bigger than max will be set to max, same for min
+        C_real[C_real > max] = max
+        C_real[C_real < min] = min
 
-            if(stochastic):
-                for i in range(self.num_neurons):
-                    for j in range(C_real.shape[0]):
-                        C_new_discrete[i,j] = self.prob_round(C_new_discrete[i,j])
-            
-            if(self.debug):
-                print("Initialized the C_scaled_real matrix to")
-                print(self.C_scaled_real)
+        # Scale the new weights with respect to the range
+        C_new_discrete = np.zeros(C_real.shape)
+        
+        max_syn = self.parameters["dynapse_maximal_synapse_o"]
 
-        else:
-            # Discretize delta_C_real
-            delta_C_copy = np.copy(delta_C_real)
-            np.fill_diagonal(delta_C_copy, 0)
-            delta_C_real_disc = np.zeros(C_real.shape)
-            for i in range(self.num_neurons):
-                divisor = max(delta_C_copy[:,i]) - min(delta_C_copy[:,i])
-                # divisor = max_diff
-                if(divisor != 0):
-                    delta_C_real_disc[:,i] = delta_C_copy[:,i] / divisor* 2*self.parameters["dynapse_maximal_synapse_o"]
-
-            # Update C_scaled_real
-            self.C_scaled_real = self.C_scaled_real - 0.001*delta_C_real_disc
-            C_new_discrete = np.copy(self.C_scaled_real).astype(np.int)
-            if(self.debug):
-                print("Updated C_scaled_real to")
-                print(self.C_scaled_real)
-
-        """# Scale the new weights with respect to the range
-        C_new_discrete = np.zeros(C_real.shape).astype(np.int)
-        for i in range(self.num_neurons):
-            divisor = max(C_new_real[:,i]) - min(C_new_real[:,i])
-            #divisor = max_diff
-            if(divisor != 0):
-                C_new_discrete[:,i] = C_new_real[:,i] / divisor* 2*self.parameters["dynapse_maximal_synapse_o"]
-                # self.C_scaled_real[:,i] = C_new_real[:,i] / divisor*2*self.parameters["dynapse_maximal_synapse_o"]
-
-        if(stochastic):
-            for i in range(self.num_neurons):
-                for j in range(C_real.shape[0]):
-                    C_new_discrete[i,j] = self.prob_round(C_new_discrete[i,j])"""
+        hist, bin_edges = np.histogram(C_real.reshape((-1,1)), bins = 2*max_syn, range=(min,max))
+        C_new_discrete = np.digitize(C_real.ravel(), bins = bin_edges, right = True).reshape(C_new_discrete.shape) - max_syn
+        
+        assert (C_new_discrete <= max_syn).all() and (C_new_discrete >= -max_syn).all(), "Error, have value > or < than max/min in Omega"
                     
-        # Number of neurons available should be equal for every neuron. Otherwise we would artifically increase the weight
-        # of some neurons
-        number_available = 60 - max(np.sum(np.abs(self.F), axis=1))
+        number_available_per_neuron = 62 - np.sum(np.abs(self.F), axis=1)
+
+        if(not ((number_available_per_neuron - np.sum(np.abs(C_new_discrete), axis=1)) >= 0).all()):
+            # Reduce the number of weights here, if necessary
+
+            for idx in range(C_new_discrete.shape[0]):
+                num_available = number_available_per_neuron[idx]
+                num_used = np.sum(np.abs(C_new_discrete[idx,:]))
+                while(num_used > num_available):
+                    ind_non_zero = np.nonzero(C_new_discrete[idx,:])[0]
+                    rand_ind = np.random.choice(ind_non_zero, 1)[0]
+                    if(C_new_discrete[idx,rand_ind] > 0):
+                        C_new_discrete[idx,rand_ind] -= 1
+                    else:
+                        C_new_discrete[idx,rand_ind] += 1
+                    num_used -= 1
+
+        assert ((number_available_per_neuron - np.sum(np.abs(C_new_discrete), axis=1)) >= 0).all(), "More synapses used than available"
+
         if(self.debug):
-            print("Number available per neuron %d" % number_available)
+            print("Number of neurons used: %d / %d" % (np.sum(np.abs(C_new_discrete)), np.sum(number_available_per_neuron)))
 
-        # How many connections are we using now in total?
-        total_num_used = np.sum(np.abs(C_new_discrete))
-        #if(self.debug):
-        print("Number used %d / %d" % (total_num_used, self.num_neurons*number_available))
-        difference = total_num_used - number_available*self.num_neurons
-        if(self.debug):
-            print("Difference is %d" % difference)
-
-        # Need to reduce number of connections equally
-        if(difference > 0):
-            #raise ValueError('Possibly corrupting matrix. Choose higher max_diff.')
-            if(self.debug):
-                print(C_new_discrete[:,0])
-                number_to_reduce_per_neuron = int(np.ceil(difference / self.num_neurons**2))
-                print(number_to_reduce_per_neuron)
-            while(difference > 0):
-                C_new_discrete[C_new_discrete > 0] -= 1
-                C_new_discrete[C_new_discrete < 0] += 1
-                
-                difference = np.sum(np.abs(C_new_discrete)) - number_available*C_real.shape[0]
-
-            if(self.debug):
-                print(C_new_discrete[:,0])
-                total_num_used = np.sum(np.abs(C_new_discrete))
-                print("Number used %d / %d" % (total_num_used, self.num_neurons*number_available))
-
-        #! This possibly changes the weight matrix by just decreasing the number of neurons for a few neurons
-        for i in range(self.num_neurons):
-            number_used = np.sum(np.abs(C_new_discrete[i,:]))
-            while(number_used > number_available):
-                #raise ValueError('Possibly corrupting matrix. Choose higher max_diff.')
-                C_new_discrete[i, C_new_discrete[i,:] > 0] -= 1
-                C_new_discrete[i, C_new_discrete[i,:] < 0] += 1
-                number_used = np.sum(np.abs(C_new_discrete[i,:]))
-                
-        
-        # print("Updated %d weights" % (np.sum(np.abs(self.C - C_new_discrete))))
         self.C = C_new_discrete
         return C_new_discrete
-    
-        
-    def plot_raster(self):
 
-        times = np.asarray(self.recorded_events[:,1] / 1000, dtype=int)
-        plt.figure(figsize=(18, 6))
-        plt.plot(times, self.recorded_events[:,0]-min(self.population_ids)+1, 'o', c='k', markersize=0.5)
-        plt.ylim((0,self.parameters["Nneuron"]+1))
-        plt.yticks(ticks=np.linspace(0,self.parameters["Nneuron"],int(self.parameters["Nneuron"]/2)+1))
-        plt.title("DYNAPS spike train with initial discretized weights")
-        plt.savefig("Resources/DYNAPS_initial_spikes.png")
-        plt.show()
 

@@ -4,6 +4,9 @@ from DYNAPS_runnet import runnet, my_max
 from progress.bar import ChargingBar
 
 def find_biases(sbs, utils, F_disc, C):
+
+    max_C = 0.412
+    min_C = -0.339
     
     # Bias group index: 4
     sbs.groups[4].set_bias("PS_WEIGHT_EXC_F_N", 107, 7)
@@ -22,7 +25,7 @@ def find_biases(sbs, utils, F_disc, C):
     coordinates_target = np.nonzero(target_O)
 
     # Discretize and set the recurrent connections
-    sbs.set_omega_stochastic_round(C_real=np.copy(C), delta_C_real=np.zeros(C.shape), max_diff=-1, stochastic=False)
+    sbs.bin_omega(C_real=np.copy(C), min=min_C, max=max_C)
     sbs.set_recurrent_connection()
 
     # Smooth the input to get X also calculate the rates of the target
@@ -143,13 +146,12 @@ def find_biases(sbs, utils, F_disc, C):
 def Learning(sbs, utils, F, FtM, C, debug = False):
     print("Setting FF...")
     sbs.F = np.copy(FtM)
-    max_diff = 0.5 # For Nit = 80
-    max_diff = 2.0 # For Nit = 140
+    max_C = 0.412
+    min_C = -0.412
     
     # Setting the weights on DYNAPS
     sbs.groups[4].set_bias("PS_WEIGHT_EXC_F_N", 255, 7)
     sbs.groups[4].set_bias("PS_WEIGHT_INH_F_N", 200, 5)
-
 
     # Total training time
     TotTime = utils.Nit*utils.Ntime
@@ -157,13 +159,8 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
     Ci = np.copy(C)
     Cs = np.zeros([utils.T, utils.Nneuron, utils.Nneuron]) # Store the recurrent weights over the course of training
     Cs_discrete = np.zeros([utils.T, utils.Nneuron, utils.Nneuron])
-    C_current_discrete = sbs.set_omega_stochastic_round(C_real=np.copy(C), delta_C_real=np.copy(np.zeros(C.shape)), max_diff=max_diff, stochastic=False)
+    C_current_discrete = sbs.bin_omega(C_real=np.copy(C), min=min_C, max=max_C)
 
-
-    x_recon_lam = 0.001
-    x_recon_R = 1.0
-    delta_F = 1.0
-    delta_R = 1.0
     delta_mod_thresh_up = 0.01 # Use the one in sbs controller
     delta_mod_thresh_dwn = 0.01
     # Save the updates in here
@@ -191,10 +188,6 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
     w = w / np.sum(w)
 
     j = 1
-
-    """Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), utils.Ntime)).T
-    for d in range(utils.Nx):
-        Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')"""
 
     bar = ChargingBar('Learning', max=TotTime-1)
     for i in range(2, TotTime):
@@ -224,22 +217,24 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
             X = np.zeros(X.shape)
             for t in range(1, utils.Ntime):
                 X[:,t] = (1-utils.lam*utils.dt)*X[:,t-1] + utils.dt*Input[:, t]
-            if(sbs.debug):
+            """if(sbs.debug):
                 plt.plot(X.T)
-                plt.show()
+                plt.show()"""
             # 3)
             sbs.load_signal(np.copy(X), delta_mod_thresh_up, delta_mod_thresh_dwn)
             # 4)
             for i in range(delta_Omega.shape[1]): # First transform each column
                 if(ks[i] > 0):
                     delta_Omega[:,i] /= ks[i]
-            C_current_discrete = sbs.set_omega_stochastic_round(C_real=np.copy(C), delta_C_real=np.copy(delta_Omega), max_diff=max_diff, stochastic=False)
+            # Do the update
+            C = C - delta_Omega
+            
+            C_current_discrete = sbs.bin_omega(C_real=np.copy(C), min=min_C, max=max_C)
             if(sbs.debug):
                 print(C_current_discrete)
             # 5)
             sbs.set_recurrent_connection()
-            # Do the update
-            C = C - delta_Omega
+
             # Reset
             ks = np.zeros(delta_Omega.shape[1])
             delta_Omega = np.zeros(C.shape)
@@ -263,35 +258,13 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
                     ks[k] += 1
                 V_recons[:,t] = new_V_recon
 
-
-            """# 7 + 8) # Trying to match the simulation more with the DYNAPS
-            for t in range(1, utils.Ntime):
-                neurons_that_spiked = np.nonzero(O_DYNAPS[:,t])[0]
-
-                current_thresh = utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)
-                new_V_recon = 0.1*V_recons[:,t-1] + np.matmul(F.T, X[:,t]) + np.matmul(C, R[:,t-1])
-
-                (m, k) = my_max(new_V_recon.reshape((-1,1)) - current_thresh) # Returns maximum and argmax
-
-                if(m[0] >= 0 and O_DYNAPS[k,t]): # Check if we actually get a spike from DYNAPS
-                    tmp = utils.epsr*(utils.beta*(new_V_recon + utils.mu*R[:,t-1]) + C[:,k] + utils.mu*Id[:,k])
-                    delta_Omega[:,k] += tmp
-                    ks[k] += 1
-                    # Update rate vector
-                    r_tmp = R[:,t-1]
-                    r_tmp[k] += 1
-                    R[:,t] = (1-utils.lam*utils.dt)*r_tmp
-                V_recons[:,t] = new_V_recon"""
-
-
-            
-            if(sbs.debug):
+            """if(sbs.debug):
                 variance = np.sum(np.var(V_recons, axis=1, ddof=1)) / (utils.Nneuron)
                 print(variance)
                 plt.plot(V_recons[5,:])
                 plt.show()
                 plt.plot(R[5,:])
-                plt.show()
+                plt.show()"""
             
         bar.next()
     bar.next()
@@ -316,19 +289,19 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
     print("Loading new signal...")
     sbs.load_signal(xL, delta_mod_thresh_up, delta_mod_thresh_dwn)
 
-    print(("Computing %d decoders" % (utils.T-1)))
+    print(("Computing %d decoders" % utils.T))
 
-    bar = ChargingBar('Decoders', max=utils.T-1)
+    bar = ChargingBar('Decoders', max=utils.T)
 
-    for i in range(utils.T-1):
+    for i in range(utils.T):
         if(np.sum(Cs[i,:,:]- Ci) == 0):
             if(i > 0): # Copy from the previous
                 Dec = Decs[i-1,:,:]
             else:
-                (rOL,_,_) = runnet(sbs, utils, F, Cs_discrete[i,:,:], Cs[i,:,:], TimeL, xL, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
+                (rOL,_,_) = runnet(sbs, utils, F, Cs_discrete[i,:,:], Cs[i,:,:], TimeL, xL)
                 Dec = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T # Returns solution that solves xL = Dec*r0L
         else:
-            (rOL,_,_) = runnet(sbs, utils, F, Cs_discrete[i,:,:], Cs[i,:,:], TimeL, xL, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
+            (rOL,_,_) = runnet(sbs, utils, F, Cs_discrete[i,:,:], Cs[i,:,:], TimeL, xL)
             Dec = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T # Returns solution that solves xL = Dec*r0L
         Decs[i,:,:] = Dec
         bar.next()
@@ -336,9 +309,9 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
 
     print("Computing the errors")
     TimeT = 1000 #! Was 10000
-    MeanPrate = np.zeros((1,utils.T-1))
-    Error = np.zeros((1,utils.T-1))
-    MembraneVar = np.zeros((1,utils.T-1))
+    MeanPrate = np.zeros((1,utils.T))
+    Error = np.zeros((1,utils.T))
+    MembraneVar = np.zeros((1,utils.T))
     xT = np.zeros((utils.Nx, TimeT))
 
     Trials = 5
@@ -355,19 +328,15 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
         # Load the input
         sbs.load_signal(np.copy(xT), delta_mod_thresh_up, delta_mod_thresh_dwn)
 
-        bar = ChargingBar(('Error #%d' % r), max=utils.T-1)
-        for i in range(utils.T-1):
+        bar = ChargingBar(('Error #%d' % r), max=utils.T)
+        for i in range(utils.T):
             if(sbs.debug):
                 print(Cs_discrete[i,:,:])
             print(Cs_discrete[i,:,:])
             print(np.sum(np.abs(Cs_discrete[i,:,:])))
-            (rOT, OT, VT) = runnet(sbs, utils, F, Cs_discrete[i,:,:], Cs[i,:,:], TimeT, xT, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
+            (rOT, OT, VT) = runnet(sbs, utils, F, Cs_discrete[i,:,:], Cs[i,:,:], TimeT, xT)
             xestc = np.matmul(Decs[i,:,:], rOT) # Decode the rate vector
             
-            """plt.figure(figsize=(18, 6))
-            plt.plot(xestc.T)
-            plt.plot(xT.T)
-            plt.savefig(("Resources/DYNAPS/trial%drecon%d.png" % (r, i)))"""
             err = np.sum(np.var(xT-xestc, axis=1, ddof=1)) / (np.sum(np.var(xT, axis=1, ddof=1))*Trials)
             print("Error is %d", err)           
             Error[0,i] = Error[0,i] + err
@@ -377,8 +346,8 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
         bar.finish()
         print("")
 
-    ErrorC = np.zeros((1,utils.T-1))
-    for i in range(utils.T-1):
+    ErrorC = np.zeros((1,utils.T))
+    for i in range(utils.T):
         CurrC = Cs[i,:,:]
 
         Copt = np.matmul(-F.T, F)
