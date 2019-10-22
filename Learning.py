@@ -84,6 +84,7 @@ def Learning(utils, F, C):
     # Reconstructed voltage using v_r(t) = F.T*x(t) + Omega*r(t-1)
     Vs = np.zeros((utils.Nneuron, utils.Ntime))
     V_recons = np.zeros((utils.Nneuron, utils.Ntime))
+    OS = np.zeros((utils.Nneuron, utils.Ntime))
     Rs = np.zeros((utils.Nneuron, utils.Ntime))
     V_recon = np.zeros((utils.Nneuron, 1))
     new_V_recon = np.zeros((utils.Nneuron, 1)) # Temporary storage for the new V_recon
@@ -106,6 +107,11 @@ def Learning(utils, F, C):
 
     j = 1; l = 1
 
+    Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), utils.Ntime)).T
+    for d in range(utils.Nx):
+        Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
+
+    Input.dump("DYNAPS/Resources/bias_input.dat")
     print(("%d percent of learning done" % 0))
 
     for i in range(2, TotTime):
@@ -120,9 +126,23 @@ def Learning(utils, F, C):
             j = j+1
 
         if(((i-2) % utils.Ntime) == 0):
+            """variance = np.sum(np.var(V_recons, axis=1, ddof=1)) / (utils.Nneuron)
+            print(variance)"""
             Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), utils.Ntime)).T
             for d in range(utils.Nx):
                 Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
+            """plt.plot(V_recons[5,:])
+            plt.show()
+            plt.plot(Rs[5,:])
+            plt.show()
+            coordinates = np.nonzero(OS)
+            plt.scatter(coordinates[1], coordinates[0]+1, marker='o', s=0.5)
+            plt.ylim((0,utils.Nneuron+1))
+            plt.yticks(ticks=np.linspace(0,utils.Nneuron,int(utils.Nneuron/2)+1))
+            plt.show()"""
+
+            if(i == utils.Ntime + 2):
+                OS.dump("DYNAPS/Resources/target_OS.dat")
 
             (OT_down, OT_up) = get_spiking_input(utils.delta_modulator_threshold, Input, utils.Nx, utils.Ntime)
         
@@ -147,8 +167,8 @@ def Learning(utils, F, C):
         MIs[:,t] = np.matmul(M, I).ravel()
         FTMI = np.matmul(np.matmul(F.T, M), I)
 
-        V = (1-utils.lam*utils.dt)*V + delta_F*FTMI.reshape((-1,1)) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)        
-        Vs[:,t] = V.ravel()
+        # V = (1-utils.lam*utils.dt)*V + delta_F*FTMI.reshape((-1,1)) + O*C[:,k].reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)        
+        # Vs[:,t] = V.ravel()
         V_recons[:,t] = V_recon.ravel()
 
         current_thresh = utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)
@@ -156,17 +176,18 @@ def Learning(utils, F, C):
         # Update the reconstructed voltage using V_recon = F.T*x(t) + Omega*r(t-1)
         new_V_recon = 0.1*V_recon + np.matmul(F.T, x) + np.matmul(C, r0)
         # new_V_recon = 0.1*V_recon + FTMI + np.matmul(C, r0)
+
         (m, k) = my_max(new_V_recon - current_thresh) # Returns maximum and argmax
 
         diff = (new_V_recon - current_thresh)
         neurons_above = np.linspace(0,utils.Nneuron-1, utils.Nneuron)[diff.ravel() >= 0].astype(np.int)
 
 
-        # Do the integration reset of the reconstructed voltage
+        """# Do the integration reset of the reconstructed voltage
         for i in range(utils.Nneuron):
             diff = V_recon[i] - new_V_recon[i]
             if(diff > utils.Thresh - 0.05):
-                V_recon[i] = current_thresh[i] - diff
+                V_recon[i] = current_thresh[i] - diff"""
 
         
         if (m >= 0): # We have a spike
@@ -178,8 +199,12 @@ def Learning(utils, F, C):
             delta_Omega[:,k] =  delta_Omega[:,k] + tmp
             ks[k] += 1
             r0[k] = r0[k] + 1
+            OS[k,t] = 1
         else:
             O = 0
+        
+        """r0[neurons_above] += 1
+        OS[neurons_above, t] = 1"""
             
         r0 = (1-utils.lam*utils.dt)*r0
         Rs[:,t] = r0.ravel()
@@ -211,19 +236,19 @@ def Learning(utils, F, C):
 
     print(("Computing %d decoders" % utils.T))
 
-    for i in range(utils.T):
+    for i in range(utils.T-1):
         (rOL,_,_) = runnet_recon_x(utils.dt, utils.lam, Fs[i,:,:], OT_upL, OT_downL, Cs[i,:,:], utils.Nneuron, TimeL, utils.Thresh, xL, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
         Dec = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T # Returns solution that solves xL = Dec*r0L
         Decs[i,:,:] = Dec
 
     print("Computing the errors")
     TimeT = 1000 #! Was 10000
-    MeanPrate = np.zeros((1,utils.T))
-    Error = np.zeros((1,utils.T))
-    MembraneVar = np.zeros((1,utils.T))
+    MeanPrate = np.zeros((1,utils.T-1))
+    Error = np.zeros((1,utils.T-1))
+    MembraneVar = np.zeros((1,utils.T-1))
     xT = np.zeros((utils.Nx, TimeT))
 
-    Trials = 2
+    Trials = 5
 
     for r in range(Trials):
         InputT = utils.A*(np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), TimeT)).T
@@ -237,16 +262,19 @@ def Learning(utils, F, C):
         for t in range(1,TimeT):
             xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*InputT[:,t-1]
 
-        for i in range(utils.T):
+        for i in range(utils.T-1):
             (rOT, OT, VT) = runnet_recon_x(utils.dt, utils.lam, Fs[i,:,:], OT_upT, OT_downT, Cs[i,:,:], utils.Nneuron, TimeT, utils.Thresh, xT, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
             xestc = np.matmul(Decs[i,:,:], rOT) # Decode the rate vector
+            """plt.plot(xestc.T)
+            plt.plot(xT.T)
+            plt.show()"""
             Error[0,i] = Error[0,i] + np.sum(np.var(xT-xestc, axis=1, ddof=1)) / (np.sum(np.var(xT, axis=1, ddof=1))*Trials)
             MeanPrate[0,i] = MeanPrate[0,i] + np.sum(OT) / (TimeT*utils.dt*utils.Nneuron*Trials)
             MembraneVar[0,i] = MembraneVar[0,i] + np.sum(np.var(VT, axis=1, ddof=1)) / (utils.Nneuron*Trials)
 
 
-    ErrorC = np.zeros((1,utils.T))
-    for i in range(utils.T):
+    ErrorC = np.zeros((1,utils.T-1))
+    for i in range(utils.T-1):
         CurrF = Fs[i,:,:]
         CurrC = Cs[i,:,:]
 

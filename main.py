@@ -49,10 +49,10 @@ if(TRAINING):
 
     # Initial recurrent weights have small scales, except for the resets
     #! Uncomment for true initialization
-    #C_initial = -0.2*np.random.rand(utils.Nneuron, utils.Nneuron)-0.5*np.eye(utils.Nneuron)
+    C_initial = -0.2*np.random.rand(utils.Nneuron, utils.Nneuron)-0.5*np.eye(utils.Nneuron)
 
     # Changed to diagonal negative thresholds
-    C_initial = -utils.Thresh*np.eye(utils.Nneuron)
+    # C_initial = -utils.Thresh*np.eye(utils.Nneuron)
 
     ########## Prepare weight matrix for the DYNAPS ##########
     FtM = np.matmul(F_initial.T, M)

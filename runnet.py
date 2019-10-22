@@ -34,16 +34,23 @@ def runnet_recon_x(dt, lam, F, OT_up, OT_down, C, Nneuron, Ntime, Thresh, x, x_r
         # V[:,t] = ((1-lam*dt)*V[:,t-1].reshape((-1,1)) + delta_F*FTMI.reshape((-1,1)) + np.matmul(C, O[:,t-1].reshape((-1,1))) + 0.001*np.random.randn(Nneuron,1)).ravel()
         V[:,t] = 0.1*V[:,t-1] + np.matmul(F.T, x[:,t]) + np.matmul(C, r0[:,t-1]) + 0.001*np.random.randn(Nneuron,1).ravel()
 
+        current_thresh = Thresh-0.01*np.random.randn(Nneuron, 1)
+        diff = (V[:,t].ravel() - current_thresh.ravel())
+        neurons_above = np.linspace(0,Nneuron-1, Nneuron)[diff >= 0].astype(np.int)
 
         I = (1-x_recon_lam)*I + x_recon_R*ot
         FTMI = np.matmul(np.matmul(F.T, M), I)
 
-        (m,k) = my_max(V[:,t].reshape((-1,1)) - Thresh-0.01*np.random.randn(Nneuron, 1))
+        (m,k) = my_max(V[:,t].reshape((-1,1)) - current_thresh)
 
+        r_tmp = r0[:,t-1]
         if(m>=0):
             O[k,t] = 1
+            r_tmp[k] += 1
+        """r_tmp[neurons_above] += 1
+        O[neurons_above, t] = 1"""
         
-        r0[:,t] = ((1-lam*dt)*r0[:,t-1].reshape((-1,1))+1*O[:,t].reshape((-1,1))).ravel()
+        r0[:,t] = (1-lam*dt)*r_tmp
 
     return (r0, O, V)
 

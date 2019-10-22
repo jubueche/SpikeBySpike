@@ -35,10 +35,12 @@ class SBSController():
             self.parameters = json.load(f)
         self.num_neurons = self.parameters["Nneuron"]
         self.C = np.zeros((self.num_neurons, self.num_neurons)).astype(np.int) # Initialized to 0
+        self.C_scaled_real = np.zeros((self.num_neurons, self.num_neurons))
         
         try:
             print("RPYC: OK")
             self.model = c.modules.CtxDynapse.model; print("Model: OK")
+            self.groups = self.model.get_bias_groups(); print("Bias Groups: OK")
             self.vModel = self.c.modules.CtxDynapse.VirtualModel(); print("vModel: OK")
             self.SynTypes = c.modules.CtxDynapse.DynapseCamType; print("SynTypes: OK")
             self.dynapse = c.modules.CtxDynapse.dynapse; print("DYNAPS: OK")
@@ -190,13 +192,16 @@ class SBSController():
         self.spikegen.set_isi_multiplier(isi_base)
         self.spikegen.set_repeat_mode(repeat_mode)
 
-    def load_signal(self, x):
+    def load_signal(self, x, delta_mod_thresh_up=-1, delta_mod_thresh_dwn=-1):
         self.signal_length = x.shape[1]
         ups = []; downs = []
         for i in range(x.shape[0]):
-                tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), np.copy(x[i,:]), 0.01*self.parameters["delta_modulator_threshold"], 0.01*self.parameters["delta_modulator_threshold"], 0.0001)
-                ups.append(np.asarray(np.copy(tmp[0])))
-                downs.append(np.asarray(np.copy(tmp[1])))
+            if(delta_mod_thresh_dwn == -1):
+                tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), np.copy(x[i,:]), 0.001*self.parameters["delta_modulator_threshold"], 0.0005*self.parameters["delta_modulator_threshold"], 0.0001)
+            else:
+                tmp = signal_to_spike_refractory(1, np.linspace(0,len(x[i,:])-1,len(x[i,:])), np.copy(x[i,:]), delta_mod_thresh_up, delta_mod_thresh_dwn, 0.0001)
+            ups.append(np.asarray(np.copy(tmp[0])))
+            downs.append(np.asarray(np.copy(tmp[1])))
 
         self.spikes_up = np.copy(np.asarray(ups))
         self.spikes_down = np.copy(np.asarray(downs))
@@ -238,23 +243,9 @@ class SBSController():
 
         # Get the FPGA events
         fpga_events = self.get_fpga_events(signal_isi, neuron_ids)
-        if(self.debug):
-            t = 0
-            sTrain = np.zeros((self.num_neurons, self.signal_length))
-            for evt in fpga_events:
-                if(evt.neuron_id != 255):
-                    cT = t + int(evt.isi / 1000)
-                    sTrain[int(evt.neuron_id-1), cT] = 1
-                    t = cT
-                else:
-                    cT = t + int(evt.isi / 1000)
-            coordinates = np.nonzero(sTrain)
-            plt.scatter(coordinates[1], coordinates[0], marker='o', s=0.5, c='k')
-            plt.show()
 
         # Load spike gen
         self.load_spike_gen(fpga_events=fpga_events, isi_base=self.base_isi, repeat_mode=False)
-        self.model.apply_diff_state()
 
     def compile_preloaded_stimulus(self, dummy_neuron_id = 255):
         
@@ -328,7 +319,7 @@ class SBSController():
     Pre: Weight matrix must be discretized and sum of each row must be below maximum number of neurons allowed.
     """
     def set_recurrent_weight_directly(self, C_discrete):
-        self.C = np.copy(C_discrete.astype(np.int))
+        self.C = C_discrete.astype(np.int)
 
     def prob_round(self, x_local):
         sign = np.sign(x_local)
@@ -337,28 +328,71 @@ class SBSController():
         round_func = math.ceil if is_up else math.floor
         return sign * round_func(x_local)
 
-    def set_omega_stochastic_round(self, C_real, delta_C_real, stochastic = False):
+    def set_omega_stochastic_round(self, C_real, delta_C_real, max_diff = 0.3, stochastic = False):
         """
         Given: C_real:    The recurrent connection matrix from the simulation
             delta_C_real: The delta of the recurrent connection matrix from the simulation
             weight_range: The range of the recurrent weights. These values are obtained from a previously run simulation
         """
-        C_new_real = C_real - delta_C_real
-        np.fill_diagonal(C_new_real, 0)
 
+        C_new_real = C_real - delta_C_real        
+        np.fill_diagonal(C_new_real, 0)
         
-        # Scale the new weights with respect to the range
-        C_new_discrete = np.zeros(C_real.shape).astype(np.int) #! Setting this to ones causes the bug
+        #threshold
+        C_new_real[np.abs(C_new_real) < 0.05] = 0
+
+        # Initialize
+        if(np.sum(np.abs(self.C_scaled_real)) == 0):
+            # Scale the new weights with respect to the range
+            C_new_discrete = np.zeros(C_real.shape).astype(np.int)
+            for i in range(self.num_neurons):
+                # divisor = max(C_new_real[:,i]) - min(C_new_real[:,i])
+                divisor = max_diff
+                if(divisor != 0):
+                    C_new_discrete[:,i] = C_new_real[:,i] / divisor* 2*self.parameters["dynapse_maximal_synapse_o"]
+                    self.C_scaled_real[:,i] = C_new_real[:,i] / divisor*2*self.parameters["dynapse_maximal_synapse_o"]
+
+            if(stochastic):
+                for i in range(self.num_neurons):
+                    for j in range(C_real.shape[0]):
+                        C_new_discrete[i,j] = self.prob_round(C_new_discrete[i,j])
+            
+            if(self.debug):
+                print("Initialized the C_scaled_real matrix to")
+                print(self.C_scaled_real)
+
+        else:
+            # Discretize delta_C_real
+            delta_C_copy = np.copy(delta_C_real)
+            np.fill_diagonal(delta_C_copy, 0)
+            delta_C_real_disc = np.zeros(C_real.shape)
+            for i in range(self.num_neurons):
+                divisor = max(delta_C_copy[:,i]) - min(delta_C_copy[:,i])
+                # divisor = max_diff
+                if(divisor != 0):
+                    delta_C_real_disc[:,i] = delta_C_copy[:,i] / divisor* 2*self.parameters["dynapse_maximal_synapse_o"]
+
+            # Update C_scaled_real
+            self.C_scaled_real = self.C_scaled_real - 0.001*delta_C_real_disc
+            C_new_discrete = np.copy(self.C_scaled_real).astype(np.int)
+            if(self.debug):
+                print("Updated C_scaled_real to")
+                print(self.C_scaled_real)
+
+        """# Scale the new weights with respect to the range
+        C_new_discrete = np.zeros(C_real.shape).astype(np.int)
         for i in range(self.num_neurons):
             divisor = max(C_new_real[:,i]) - min(C_new_real[:,i])
+            #divisor = max_diff
             if(divisor != 0):
                 C_new_discrete[:,i] = C_new_real[:,i] / divisor* 2*self.parameters["dynapse_maximal_synapse_o"]
+                # self.C_scaled_real[:,i] = C_new_real[:,i] / divisor*2*self.parameters["dynapse_maximal_synapse_o"]
 
         if(stochastic):
             for i in range(self.num_neurons):
                 for j in range(C_real.shape[0]):
-                    C_new_discrete[i,j] = self.prob_round(C_new_discrete[i,j])
-
+                    C_new_discrete[i,j] = self.prob_round(C_new_discrete[i,j])"""
+                    
         # Number of neurons available should be equal for every neuron. Otherwise we would artifically increase the weight
         # of some neurons
         number_available = 60 - max(np.sum(np.abs(self.F), axis=1))
@@ -367,14 +401,15 @@ class SBSController():
 
         # How many connections are we using now in total?
         total_num_used = np.sum(np.abs(C_new_discrete))
-        if(self.debug):
-            print("Number used %d / %d" % (total_num_used, self.num_neurons*number_available))
+        #if(self.debug):
+        print("Number used %d / %d" % (total_num_used, self.num_neurons*number_available))
         difference = total_num_used - number_available*self.num_neurons
         if(self.debug):
             print("Difference is %d" % difference)
 
         # Need to reduce number of connections equally
         if(difference > 0):
+            #raise ValueError('Possibly corrupting matrix. Choose higher max_diff.')
             if(self.debug):
                 print(C_new_discrete[:,0])
                 number_to_reduce_per_neuron = int(np.ceil(difference / self.num_neurons**2))
@@ -390,17 +425,19 @@ class SBSController():
                 total_num_used = np.sum(np.abs(C_new_discrete))
                 print("Number used %d / %d" % (total_num_used, self.num_neurons*number_available))
 
+        #! This possibly changes the weight matrix by just decreasing the number of neurons for a few neurons
         for i in range(self.num_neurons):
             number_used = np.sum(np.abs(C_new_discrete[i,:]))
             while(number_used > number_available):
+                #raise ValueError('Possibly corrupting matrix. Choose higher max_diff.')
                 C_new_discrete[i, C_new_discrete[i,:] > 0] -= 1
                 C_new_discrete[i, C_new_discrete[i,:] < 0] += 1
                 number_used = np.sum(np.abs(C_new_discrete[i,:]))
                 
-
-        # TODO Necessary copy?
-        self.C = np.copy(C_new_discrete)
-        return np.copy(C_new_discrete)
+        
+        # print("Updated %d weights" % (np.sum(np.abs(self.C - C_new_discrete))))
+        self.C = C_new_discrete
+        return C_new_discrete
     
         
     def plot_raster(self):

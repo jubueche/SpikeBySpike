@@ -12,7 +12,7 @@ def plot(results, utils, direc):
     MeanPrate = results["MeanPrate"]
     MembraneVar = results["MembraneVar"]
     ErrorC = results["ErrorC"]
-    T = utils.T
+    T = utils.T-1
     dt = utils.dt
 
     loglog_x = 2**np.linspace(1,T,T)
