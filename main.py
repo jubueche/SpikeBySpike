@@ -8,9 +8,6 @@ from plotting import *
 
 TRAINING = True
 
-#! TODO: - Improve network behaviour on DYNAPS, find best hyperparams by computing rate vectors and computing the covariance
-#!       - Omit all weights except one and compare spike trains with spiking input   
-
 ########## Read parameter file #########
 
 if(sys.argv[1] != None):
@@ -51,6 +48,7 @@ if(TRAINING):
     #! Uncomment for true initialization
     C_initial = -0.2*np.random.rand(utils.Nneuron, utils.Nneuron)-0.5*np.eye(utils.Nneuron)
 
+
     # Changed to diagonal negative thresholds
     # C_initial = -utils.Thresh*np.eye(utils.Nneuron)
 
@@ -59,7 +57,10 @@ if(TRAINING):
     for i in range(FtM.shape[1]): # for all columns
         FtM[:,i] = FtM[:,i] / (max(FtM[:,i]) - min(FtM[:,i])) * 2*utils.dynapse_maximal_synapse
     FtM = np.asarray(FtM, dtype=int)
+
+    # For finding biases on the DYNAPS
     FtM.dump(os.path.join(os.getcwd(), "DYNAPS/Resources/DYNAPS_F.dat"))
+    F_initial.dump(os.path.join(os.getcwd(), "DYNAPS/Resources/F_initial.dat"))
 
     results = Learning(utils, F_initial, C_initial)
 

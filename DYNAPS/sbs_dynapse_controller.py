@@ -346,7 +346,7 @@ class SBSController():
         
         max_syn = self.parameters["dynapse_maximal_synapse_o"]
 
-        hist, bin_edges = np.histogram(C_real.reshape((-1,1)), bins = 2*max_syn, range=(min,max))
+        _, bin_edges = np.histogram(C_real.reshape((-1,1)), bins = 2*max_syn, range=(min,max))
         C_new_discrete = np.digitize(C_real.ravel(), bins = bin_edges, right = True).reshape(C_new_discrete.shape) - max_syn
         
         assert (C_new_discrete <= max_syn).all() and (C_new_discrete >= -max_syn).all(), "Error, have value > or < than max/min in Omega"
@@ -359,14 +359,28 @@ class SBSController():
             for idx in range(C_new_discrete.shape[0]):
                 num_available = number_available_per_neuron[idx]
                 num_used = np.sum(np.abs(C_new_discrete[idx,:]))
-                while(num_used > num_available):
+
+                # Use sorting + cutoff to keep the most dominant weights
+                sorted_indices = np.flip(np.argsort(np.abs(C_new_discrete[idx,:])))
+                sub_sum = 0; i = 0
+                while(sub_sum < num_available):
+                    if(i == len(sorted_indices)):
+                        break
+                    sub_sum += np.abs(C_new_discrete[idx,:])[sorted_indices[i]]
+                    i += 1
+                tmp = np.zeros(len(sorted_indices))
+                tmp[sorted_indices[0:i-1]] = C_new_discrete[idx,sorted_indices[0:i-1]]
+                C_new_discrete[idx,:] = tmp
+
+                # Uses random subsampling to decide which weights to reduce
+                """while(num_used > num_available):
                     ind_non_zero = np.nonzero(C_new_discrete[idx,:])[0]
                     rand_ind = np.random.choice(ind_non_zero, 1)[0]
                     if(C_new_discrete[idx,rand_ind] > 0):
                         C_new_discrete[idx,rand_ind] -= 1
                     else:
                         C_new_discrete[idx,rand_ind] += 1
-                    num_used -= 1
+                    num_used -= 1"""
 
         assert ((number_available_per_neuron - np.sum(np.abs(C_new_discrete), axis=1)) >= 0).all(), "More synapses used than available"
 

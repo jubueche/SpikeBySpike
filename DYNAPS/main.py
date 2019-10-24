@@ -8,7 +8,7 @@ import sbs_dynapse_controller
 import sys
 import os
 import numpy as np
-from DYNAPS_Learning import Learning, find_biases
+from DYNAPS_Learning import Learning, align_slow_signal, tune_biases
 sys.path.append(os.path.join(os.getcwd(),"../"))
 from Utils import Utils
 from plotting import plot
@@ -45,7 +45,7 @@ sbs.model.apply_diff_state()
 utils = Utils.from_json(sbs.parameters)
 
 np.set_printoptions(precision=6, suppress=True)
-np.random.seed(42)
+#np.random.seed(42)
 
 resources = os.path.join(os.getcwd(), "Resources/DYNAPS")
 if(not os.path.exists(resources)):
@@ -92,7 +92,8 @@ if(not testing and not find_bias):
 elif(find_bias):
 
     try:
-        find_biases(sbs, utils, FtM, C_initial)
+        # tune_biases(sbs, utils)
+        align_slow_signal(sbs, utils)
 
     except Exception:
         print("Cleaned up conns.")

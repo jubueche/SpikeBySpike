@@ -2,156 +2,246 @@ import numpy as np
 import matplotlib.pyplot as plt
 from DYNAPS_runnet import runnet, my_max
 from progress.bar import ChargingBar
+import sys
+import os
+sys.path.append(os.path.join(os.getcwd(),"../"))
+from runnet import get_spiking_input
 
-def find_biases(sbs, utils, F_disc, C):
+def align_slow_signal(sbs, utils):
+    """
+    This function produces a very slow changing signal and computes the reconstructed voltages from it using a filtered
+    version of the spike inputs. If the reconstructed voltages cross a threshold, a spike is triggered.
+    Unlike in the simulation, we trigger a spike for every neuron that crosses the threshold.
+    The next step would be to find parameters on the DYNAPS that reproduce the spike train 100% and yield a very small
+    difference in the rate vectors.
+    """
 
-    max_C = 0.412
-    min_C = -0.339
+    np.random.seed(42)
+
+    w = (1/(100*utils.sigma*np.sqrt(2*np.pi)))* np.exp(-((np.linspace(1,1000,1000)-500)**2)/(2*(100*utils.sigma)**2))
+    w = w / np.sum(w)
+    # Calculate and load the signal for the decoders
+    TimeL = 1000 # Was 50000 in the simulation
+
+    Nx = 1
+
+    xL = np.zeros((Nx, TimeL))
+
+    InputL = utils.A*(np.random.multivariate_normal(np.zeros(Nx), np.eye(Nx), TimeL)).T
+    for d in range(Nx):
+        InputL[d,:] = np.convolve(InputL[d,:], w, 'same')
+
+    # Compute the target output by a leaky integration of the input
+    for t in range(1,TimeL):
+        xL[:,t] = (1-utils.lam*utils.dt)*xL[:,t-1] + utils.dt*InputL[:,t-1]
+
+    (OT_down, OT_up) = get_spiking_input(0.1, xL, Nx, TimeL)
     
-    # Bias group index: 4
-    sbs.groups[4].set_bias("PS_WEIGHT_EXC_F_N", 107, 7)
-    sbs.groups[4].set_bias("PS_WEIGHT_INH_F_N", 107, 7)
+    """if(sbs.debug): 
+        coordinates_up = np.nonzero(OT_up)
+        coordinates_dwn = np.nonzero(OT_down)
+        plt.figure(figsize=(6,4))
+        plt.subplot(311)
+        plt.scatter(coordinates_up[1], coordinates_up[0], marker='o', s=0.5)
+        plt.xlim((0,TimeL))
+        plt.subplot(312)
+        plt.scatter(coordinates_dwn[1], coordinates_dwn[0], marker='o', s=0.5)
+        plt.xlim((0,TimeL))
+        plt.subplot(313)
+        plt.plot(xL.T)
+        plt.xlim((0,TimeL))
+        plt.tight_layout()
+        plt.show()"""
 
-    FtM_sim = np.load("Resources/DYNAPS_F.dat", allow_pickle=True)
-    assert np.sum((FtM_sim - F_disc)) == 0, "Assertion failed. Matrices not equal"
 
-    # Load the FF matrix
+    Is = np.zeros((2*Nx, 1))
+    Vs = np.zeros((utils.Nneuron,TimeL))
+    OT = np.zeros((utils.Nneuron,TimeL))
+    I = np.zeros(Nx)
+    M = np.asarray([1,-1]).reshape((1,-1))
+    MIs = np.zeros((Nx, TimeL))
+
+    F = 0.5*np.random.randn(utils.Nx, utils.Nneuron)
+    F = utils.gamma*np.divide(F, np.sqrt(np.matmul(np.ones((utils.Nx,1)), np.sum(F**2, axis=0).reshape((1,utils.Nneuron)))))
+    F = F[0,:].reshape((1,-1))
+    C = -np.eye(utils.Nneuron)*0.5
+
+    ot = np.zeros(utils.Nneuron)
+    k = 0
+
+    FtM = np.matmul(F.T, M)
+    for i in range(FtM.shape[1]): # for all columns
+        FtM[:,i] = FtM[:,i] / (max(FtM[:,i]) - min(FtM[:,i])) * 2*utils.dynapse_maximal_synapse_ff
+    FtM = np.asarray(FtM, dtype=int)
+
+    for t in range(1,TimeL):
+
+        current_threshold = utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)
+
+        ot = np.asarray([OT_up[0,t], OT_down[0,t]])
+        I = (1-0.000001)*I + 0.1*ot
+        MIs[:,t] = np.matmul(M, I).ravel()
+        FtMI = np.matmul(np.matmul(F.T, M), I).reshape((-1,))
+        ot = OT[:,t-1].reshape((-1,1))
+
+        #Vs[:,t] = (1-utils.lam*utils.dt)*Vs[:,t-1] + np.matmul(F.T, xL[:,t]).ravel() + np.matmul(C,ot).ravel() + 0.001*np.random.randn(utils.Nneuron, 1).ravel()
+        Vs[:,t] = (1-utils.lam*utils.dt)*Vs[:,t-1] + FtMI + np.matmul(C,ot).ravel() + 0.001*np.random.randn(utils.Nneuron, 1).ravel()
+
+        diff = (Vs[:,t] - current_threshold.ravel())
+        (m,k) = my_max(diff)
+        if(m>=0):
+            OT[k,t] = 1
+
+        """neurons_that_spiked = (diff >= 0)
+        OT[neurons_that_spiked, t] = 1"""
+
+    """sbs.F = FtM
+    sbs.set_recurrent_connection()"""
+
+    """plt.plot(MIs.T)
+    plt.plot(xL.T)
+    plt.show()"""
+
+    coordinates = np.nonzero(OT)
+    plt.scatter(coordinates[1], coordinates[0], marker='o', s=0.5)
+    plt.show()
+
+def tune_biases(sbs, utils):
+
+    F = np.load("Resources/F_initial.dat", allow_pickle=True)
+    F_disc = np.load("Resources/DYNAPS_F.dat", allow_pickle=True)
+    C_inital = np.load("Resources/Ci.dat", allow_pickle=True)
+    C_after = np.load("Resources/C_after.dat", allow_pickle=True)
+
+    # 1) Set F_disc
     sbs.F = np.copy(F_disc)
+    max_C = 0.625
+    min_C = -0.545
 
-    # We will test the behaviour on a test input that was computed by the simulation
-    Input = np.load("Resources/bias_input.dat", allow_pickle=True)
-    # Load the target rate matrix that we want to reconstruct
-    target_O = np.load("Resources/target_OS.dat", allow_pickle=True)
-    coordinates_target = np.nonzero(target_O)
+    # 2)
+    # Kernel
+    w = (1/(utils.sigma*np.sqrt(2*np.pi)))* np.exp(-((np.linspace(1,1000,1000)-500)**2)/(2*utils.sigma**2))
+    w = w / np.sum(w)
+    # Calculate and load the signal for the decoders
+    TimeL = 5000 # Was 50000 in the simulation
+    xL = np.zeros((utils.Nx, TimeL))
 
-    # Discretize and set the recurrent connections
-    sbs.bin_omega(C_real=np.copy(C), min=min_C, max=max_C)
-    sbs.set_recurrent_connection()
+    InputL = utils.A*(np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), TimeL)).T
+    for d in range(utils.Nx):
+        InputL[d,:] = np.convolve(InputL[d,:], w, 'same')
 
-    # Smooth the input to get X also calculate the rates of the target
-    X = np.zeros((utils.Nx, utils.Ntime))
-    R = np.zeros((utils.Nneuron, utils.Ntime))
-    target_R = np.zeros((utils.Nneuron, utils.Ntime))
-    for t in range(1, utils.Ntime):
-        X[:,t] = (1-utils.lam*utils.dt)*X[:,t-1] + utils.dt*Input[:, t]
-        neurons_that_spiked = np.nonzero(target_O[:,t])[0]
-        r_tmp = target_R[:,t-1]
-        r_tmp[neurons_that_spiked] += np.ones(len(neurons_that_spiked))
-        target_R[:,t] = (1-utils.lam*utils.dt)*r_tmp
+    # Compute the target output by a leaky integration of the input
+    for t in range(1,TimeL):
+        xL[:,t] = (1-utils.lam*utils.dt)*xL[:,t-1] + utils.dt*InputL[:,t-1]
 
     if(sbs.debug):
-        plt.plot(X.T)
+        plt.plot(xL.T)
         plt.show()
 
-    # Best so far is c_e7c_i5f_e255f_i200dup0.01000ddwn0.01000l2_49.47701
-    max_cor = 0.0
-    min_l2 = 1000000.0
-    # min_l2 = 38.9
+    num_parameters = 5
+    fine_inh = [200,20,100,50,255]
+    coarse_inh = [5,6,4,-1,-1]
+    delta_mod_ups = [0.01,0.001,0.005,0.05,-1]
+    delta_mod_dwns = [0.001,0.01,0.005,0.05,-1]
+    best = 0.0
 
-    delta_mod_ups = [0.01] # <
-    delta_mod_dwns = [0.01] # >
-    coarse_exc = [7] # <
-    coarse_inh = [5] # <
-    fine_exc = [255] # >
-    fine_inh = [200] # <
+    best_fi = fine_inh[0]
+    best_ci = coarse_inh[0]
+    best_dup = delta_mod_ups[0]
+    best_ddwn = delta_mod_dwns[0]
+
+    order = ['ci', 'fi', 'dup', 'ddwn']
+    T = 4
+    for t in range(T):
+        to_tune = order[t % len(order)]
+        print("Tuning %s" % to_tune)
+        for i in range(num_parameters):
+
+            if (to_tune == 'fi'):
+                ci = best_ci; dup = best_dup; ddwn = best_ddwn; fi = fine_inh[i]
+                if (fi == -1): break
+            elif (to_tune == 'ci'):
+                ci = coarse_inh[i]; dup = best_dup; ddwn = best_ddwn; fi = best_fi
+                if (ci == -1): break
+            elif (to_tune == 'dup'):
+                ci = best_ci; dup = delta_mod_ups[i]; ddwn = best_ddwn; fi = best_fi
+                if (dup == -1): break
+            elif (to_tune == 'ddwn'):
+                ci = best_ci; dup = best_dup; ddwn = delta_mod_dwns[i]; fi = best_fi
+                if(ddwn == -1): break
+            else:
+                raise Exception("No element to fine tune")
+
+            sbs.groups[4].set_bias("PS_WEIGHT_EXC_F_N", 255, 7)
+            sbs.groups[4].set_bias("PS_WEIGHT_INH_F_N", fi, ci) # 200, 5
+            delta_mod_thresh_up = dup
+            delta_mod_thresh_dwn = ddwn
+
+            # Load the new input into the spike generator
+            sbs.load_signal(xL, delta_mod_thresh_up, delta_mod_thresh_dwn)
+
+            # 3)
+            C_i_discrete = sbs.bin_omega(C_inital, min = min_C, max = max_C)
+            (rOL,_,_) = runnet(sbs, utils, F, C_i_discrete, C_inital, TimeL, xL)
+            D_initial = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T # Returns solution that solves xL = Dec*r0L
+            C_after_discrete = sbs.bin_omega(C_after, min = min_C, max = max_C)
+            (rOL,_,_) = runnet(sbs, utils, F, C_after_discrete, C_after, TimeL, xL)
+            D_after = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T
+
+            # 4)
+            trials = 5
+            error_diff = np.zeros(5)
+            TimeT = 1000
+            xT = np.zeros((utils.Nx, TimeT))
+            for i in range(trials):
+                # Generate new signal to test on
+                InputT = utils.A*(np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), TimeT)).T
+                for d in range(utils.Nx):
+                    InputT[d,:] = np.convolve(InputT[d,:], w, 'same')
+                # Compute the target output by leaky integration of InputT
+                for t in range(1,TimeT):
+                    xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*InputT[:,t-1]
+                # Load the input
+                sbs.load_signal(np.copy(xT), delta_mod_thresh_up, delta_mod_thresh_dwn)
+                (rOT, OT, VT) = runnet(sbs, utils, F, C_i_discrete, C_inital, TimeT, xT)
+                xestc = np.matmul(D_initial, rOT) # Decode the rate vector
+                err_initial = np.sum(np.var(xT-xestc, axis=1, ddof=1)) / np.sum(np.var(xT, axis=1, ddof=1))
+                (rOT, OT, VT) = runnet(sbs, utils, F, C_after_discrete, C_after, TimeT, xT)
+                xestc = np.matmul(D_after, rOT) # Decode the rate vector
+                err_after = np.sum(np.var(xT-xestc, axis=1, ddof=1)) / np.sum(np.var(xT, axis=1, ddof=1))
+                error_diff[i] = err_after - err_initial
+
+            if(sbs.debug):
+                print(error_diff)
+                print(np.mean(error_diff))
+            
+            if(np.mean(error_diff) < best):
+                if (to_tune == 'fi'):
+                    best_fi = fi
+                elif (to_tune == 'ci'):
+                    best_ci = ci
+                elif (to_tune == 'dup'):
+                    best_dup = dup
+                elif (to_tune == 'ddwn'):
+                    best_ddwn = ddwn
+                else:
+                    raise Exception("No element to fine tune")
+                best = np.mean(error_diff)
+                print("Fi: %d Ci: %d Dup: %.4f Ddwn: %.4f" % (best_fi,best_ci,best_dup,best_ddwn))
     
-    totalT = len(delta_mod_ups)*len(delta_mod_dwns)*len(coarse_exc)*len(coarse_inh)*len(fine_exc)*len(fine_inh)
-    print("Estimated time is %dmin" % (int(totalT*1.1/60)))
-    l = 0
-
-    bar = ChargingBar('Finding Biases', max=totalT)
-    for c_e in coarse_exc: #Lowest to highest.
-        no_spike_first_trial = False
-        for f_e in fine_exc: # Highest to lowest. If The first trial does not spike, we can break and return to the outer loop.
-            for (idx_c_i, c_i) in enumerate(coarse_inh): # Lowest to highest.
-                for (idx_f_i,f_i) in enumerate(fine_inh): # Lowest to highest.
-                    for (idx_delta_mod_up,delta_mod_up) in enumerate(delta_mod_ups): # Lowest to highest
-                        for (idx_delta_mod_dwn,delta_mod_dwn) in enumerate(delta_mod_dwns): # Highest to lowest
-                            bar.next()
-                            sbs.groups[4].set_bias("PS_WEIGHT_EXC_F_N", f_e, c_e)
-                            sbs.groups[4].set_bias("PS_WEIGHT_INH_F_N", f_i, c_i)
-
-                            if(sbs.debug):
-                                print("\nSetting EXC biases to (%d,%d)" % (f_e,c_e))
-                                print("Setting INH biases to (%d,%d)" % (f_i,c_i))
-
-                            # Load the signal
-                            sbs.load_signal(np.copy(X), delta_mod_up, delta_mod_up)
-
-                            try:
-                                O_DYNAPS = sbs.execute()
-                            except IndexError:
-                                if((idx_c_i + idx_f_i + idx_delta_mod_up + idx_delta_mod_dwn) == 0):
-                                    no_spike_first_trial = True
-                                    # We can safely abort all inner loops.
-                                    if(sbs.debug):
-                                        print("No spikes. Abort!")
-                                    break
-                            else:
-                                # Compute the rate vectors
-                                for t in range(1, utils.Ntime):
-                                    neurons_that_spiked = np.nonzero(O_DYNAPS[:,t])[0]
-                                    r_tmp = R[:,t-1]
-                                    r_tmp[neurons_that_spiked] += np.ones(len(neurons_that_spiked))
-                                    R[:,t] = (1-utils.lam*utils.dt)*r_tmp
-
-                                # For every neuron, compute the correlation coefficient or l2 norm
-                                cors = []
-                                for i in range(utils.Nneuron):
-                                    """if(np.std(target_R[i,:]) == 0 or np.std(R[i,:]) == 0):
-                                        mean_diff = np.mean(np.abs(target_R[i,:]-R[i,:]))
-                                        cors.append(np.exp(-3*mean_diff))
-
-                                    else:
-                                        cors.append(np.corrcoef(target_R[i,:], R[i,:])[0,1])"""
-                                    # Use l2 norm
-                                    cors.append(np.linalg.norm(np.abs(target_R[i,:] - R[i,:]),2))
-
-                                cors = np.asarray(np.abs([0 if np.isnan(v) else v for v in cors]))
-                                total_cor = np.sum(cors) / utils.Nneuron
-                                if(sbs.debug):
-                                    print(total_cor)
-                                    # if(total_cor > max_cor): # Uncomment for correlation coef.
-                                if(total_cor < min_l2):
-                                    # max_cor = total_cor # Uncomment for correlation coef.
-                                    min_l2 = total_cor
-                                    if(sbs.debug):
-                                        print("T-UP: %.6f     T_DWN: %.6f    P. Corr.: %.6f" % (delta_mod_up, delta_mod_dwn, total_cor))
-                                    var_name = ("Resources/Bias/c_e%dc_i%df_e%df_i%ddup%.5fddwn%.5fl2_%.5f.png" % (c_e,c_i,f_e,f_i,delta_mod_up,delta_mod_dwn, total_cor))
-
-                                    #! Remeber bias and thresholds for delta moodulator
-                                    coordinates_dyn = np.nonzero(O_DYNAPS)
-                                    plt.figure(figsize=(18, 6))
-                                    plt.scatter(coordinates_target[1], coordinates_target[0]+1, marker='o', s=0.5, c='g')
-                                    plt.scatter(coordinates_dyn[1], coordinates_dyn[0]+1, marker='o', s=0.5, c='r')
-                                    plt.ylim((0,sbs.num_neurons+1))
-                                    plt.yticks(ticks=np.linspace(0,sbs.num_neurons,int(sbs.num_neurons/2)+1))
-                                    plt.savefig(var_name)
-                                    if(sbs.debug):
-                                        plt.show()
-                        if(no_spike_first_trial):
-                            break
-                    if(no_spike_first_trial):
-                        break
-                if(no_spike_first_trial):
-                    break
-            if(no_spike_first_trial):
-                break
-
-    bar.finish()
-
 
 
 
 def Learning(sbs, utils, F, FtM, C, debug = False):
     print("Setting FF...")
     sbs.F = np.copy(FtM)
-    max_C = 0.412
-    min_C = -0.412
+    max_C = 0.625
+    min_C = -0.545
+    delta_t = 20
     
     # Setting the weights on DYNAPS
     sbs.groups[4].set_bias("PS_WEIGHT_EXC_F_N", 255, 7)
-    sbs.groups[4].set_bias("PS_WEIGHT_INH_F_N", 200, 5)
+    sbs.groups[4].set_bias("PS_WEIGHT_INH_F_N", 255, 5) # 200, 5
 
     # Total training time
     TotTime = utils.Nit*utils.Ntime
@@ -161,8 +251,8 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
     Cs_discrete = np.zeros([utils.T, utils.Nneuron, utils.Nneuron])
     C_current_discrete = sbs.bin_omega(C_real=np.copy(C), min=min_C, max=max_C)
 
-    delta_mod_thresh_up = 0.01 # Use the one in sbs controller
-    delta_mod_thresh_dwn = 0.01
+    delta_mod_thresh_up = 0.05 # Use the one in sbs controller
+    delta_mod_thresh_dwn = 0.05
     # Save the updates in here
     delta_Omega = np.zeros(C.shape)
     # Keep track of how many times C[:,k] was updated
@@ -240,23 +330,37 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
             delta_Omega = np.zeros(C.shape)
             # 6)
             O_DYNAPS = sbs.execute()
-            # 7) #! In the simulation, we only update the rate vec at one point per time step
+            """# 7) #! In the simulation, we only update the rate vec at one point per time step
             for t in range(1, utils.Ntime):
-                neurons_that_spiked = np.nonzero(O_DYNAPS[:,t])[0]
-                r_tmp = R[:,t-1]
-                r_tmp[neurons_that_spiked] += np.ones(len(neurons_that_spiked))
-                R[:,t] = (1-utils.lam*utils.dt)*r_tmp
+                R[:,t] = (1-utils.lam*utils.dt)*R[:,t-1] + O_DYNAPS[:,t]
             # 8)
             for t in range(1, utils.Ntime):
                 current_thresh = utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)
-                new_V_recon = 0.1*V_recons[:,t-1] + np.matmul(F.T, X[:,t]) + np.matmul(C, R[:,t-1])
+                #! new_V_recon = 0.1*V_recons[:,t-1] + np.matmul(F.T, X[:,t]) + np.matmul(C, R[:,t-1])
+                new_V_recon = 0.1*V_recons[:,t-1] + np.matmul(F.T, X[:,t]) + R[:,t] # Rates already incorporate the recurrent connections
 
                 (m, k) = my_max(new_V_recon.reshape((-1,1)) - current_thresh) # Returns maximum and argmax
                 if(m[0] >= 0):
                     tmp = utils.epsr*(utils.beta*(new_V_recon + utils.mu*R[:,t-1]) + C[:,k] + utils.mu*Id[:,k])
                     delta_Omega[:,k] += tmp
                     ks[k] += 1
+                V_recons[:,t] = new_V_recon"""
+
+            for t in range(1, utils.Ntime):
+                current_thresh = utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)
+                new_V_recon = 0.1*V_recons[:,t-1] + np.matmul(F.T, X[:,t]) + np.matmul(C, R[:,t-1])
+
+                (m, k) = my_max(new_V_recon.reshape((-1,1)) - current_thresh) # Returns maximum and argmax
+                has_spike = np.sum(O_DYNAPS[k,max(0,t-delta_t):min(utils.Ntime-1,t+delta_t)]) > 0
+                r_tmp = R[:,t]
+                if(m[0] >= 0 and has_spike):
+                    tmp = utils.epsr*(utils.beta*(new_V_recon + utils.mu*R[:,t-1]) + C[:,k] + utils.mu*Id[:,k])
+                    delta_Omega[:,k] += tmp
+                    ks[k] += 1
+                    r_tmp[k] += 1
+
                 V_recons[:,t] = new_V_recon
+                R[:,t] = (1-utils.lam*utils.dt)*r_tmp
 
             """if(sbs.debug):
                 variance = np.sum(np.var(V_recons, axis=1, ddof=1)) / (utils.Nneuron)

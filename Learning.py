@@ -60,6 +60,20 @@ def run_trial_FTMI(utils, Input, x, delta_mod_tresh, R, lam, plot=False):
         plt.show()
     return np.linalg.norm((x-x_recon).reshape(-1,),2)
 
+def discretize(C, min, max, number_of_bins):
+
+    _, bin_edges = np.histogram(C.reshape((-1,1)), bins = number_of_bins, range=(min,max))
+    bin_indices = np.digitize(C.ravel(), bins = bin_edges, right = True)
+    C_new_discretized = np.zeros(C.shape[0]**2)
+    for i in range(C.shape[0]**2):
+        if(bin_indices[i] >= len(bin_edges)):
+            C_new_discretized[i] = bin_edges[bin_indices[i]-1]
+        else:
+            C_new_discretized[i] = bin_edges[bin_indices[i]]
+    
+    C_new_discretized = C_new_discretized.reshape(C.shape)
+    np.fill_diagonal(C_new_discretized, np.diagonal(C))
+    return C_new_discretized
 
 
 def Learning(utils, F, C):
@@ -68,6 +82,13 @@ def Learning(utils, F, C):
 
     Fi = np.copy(F)
     Ci = np.copy(C)
+
+    min = -0.35
+    max = 0.42
+    # number_of_bins = 100
+
+    # C_initial_discretized = discretize(np.copy(Ci), min = min, max = max, number_of_bins= number_of_bins)
+    # C = discretize(C, min, max, number_of_bins)
 
     Cs = np.zeros([utils.T, utils.Nneuron, utils.Nneuron]) # Store the recurrent weights over the course of training
     Fs = np.zeros([utils.T, utils.Nx, utils.Nneuron]) # Store the FF weights over the course of training
@@ -153,6 +174,7 @@ def Learning(utils, F, C):
                     delta_Omega[:,i] /= ks[i]
             # Do the update
             C = C - delta_Omega
+            # C = discretize(C, min, max, number_of_bins)
             # Reset
             ks = np.zeros(delta_Omega.shape[1])
             delta_Omega = np.zeros(C.shape)
@@ -207,6 +229,8 @@ def Learning(utils, F, C):
         OS[neurons_above, t] = 1"""
             
         r0 = (1-utils.lam*utils.dt)*r0
+        
+
         Rs[:,t] = r0.ravel()
 
         # Assign the new reconstructed voltage
@@ -236,16 +260,16 @@ def Learning(utils, F, C):
 
     print(("Computing %d decoders" % utils.T))
 
-    for i in range(utils.T-1):
+    for i in range(utils.T):
         (rOL,_,_) = runnet_recon_x(utils.dt, utils.lam, Fs[i,:,:], OT_upL, OT_downL, Cs[i,:,:], utils.Nneuron, TimeL, utils.Thresh, xL, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
         Dec = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T # Returns solution that solves xL = Dec*r0L
         Decs[i,:,:] = Dec
 
     print("Computing the errors")
     TimeT = 1000 #! Was 10000
-    MeanPrate = np.zeros((1,utils.T-1))
-    Error = np.zeros((1,utils.T-1))
-    MembraneVar = np.zeros((1,utils.T-1))
+    MeanPrate = np.zeros((1,utils.T))
+    Error = np.zeros((1,utils.T))
+    MembraneVar = np.zeros((1,utils.T))
     xT = np.zeros((utils.Nx, TimeT))
 
     Trials = 5
@@ -262,7 +286,7 @@ def Learning(utils, F, C):
         for t in range(1,TimeT):
             xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*InputT[:,t-1]
 
-        for i in range(utils.T-1):
+        for i in range(utils.T):
             (rOT, OT, VT) = runnet_recon_x(utils.dt, utils.lam, Fs[i,:,:], OT_upT, OT_downT, Cs[i,:,:], utils.Nneuron, TimeT, utils.Thresh, xT, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
             xestc = np.matmul(Decs[i,:,:], rOT) # Decode the rate vector
             """plt.plot(xestc.T)
@@ -273,8 +297,8 @@ def Learning(utils, F, C):
             MembraneVar[0,i] = MembraneVar[0,i] + np.sum(np.var(VT, axis=1, ddof=1)) / (utils.Nneuron*Trials)
 
 
-    ErrorC = np.zeros((1,utils.T-1))
-    for i in range(utils.T-1):
+    ErrorC = np.zeros((1,utils.T))
+    for i in range(utils.T):
         CurrF = Fs[i,:,:]
         CurrC = Cs[i,:,:]
 
