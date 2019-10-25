@@ -1,5 +1,5 @@
 import numpy as np
-from Learning import Learning, spiking_to_continous
+from Learning import Learning
 from Utils import Utils
 import sys
 import os
@@ -55,7 +55,7 @@ if(TRAINING):
     ########## Prepare weight matrix for the DYNAPS ##########
     FtM = np.matmul(F_initial.T, M)
     for i in range(FtM.shape[1]): # for all columns
-        FtM[:,i] = FtM[:,i] / (max(FtM[:,i]) - min(FtM[:,i])) * 2*utils.dynapse_maximal_synapse
+        FtM[:,i] = FtM[:,i] / (max(FtM[:,i]) - min(FtM[:,i])) * 2*utils.dynapse_maximal_synapse_ff
     FtM = np.asarray(FtM, dtype=int)
 
     # For finding biases on the DYNAPS
@@ -63,14 +63,6 @@ if(TRAINING):
     F_initial.dump(os.path.join(os.getcwd(), "DYNAPS/Resources/F_initial.dat"))
 
     results = Learning(utils, F_initial, C_initial)
-
-    Cs = results["Cs"]
-    for i in range(Cs.shape[0]):
-        C = Cs[i,:,:]
-        for j in range(C.shape[0]):
-            C[j,j] = 0.0
-        print(min(C.ravel()))
-        print(max(C.ravel()))
 
     ########## Dump the important files to Resources folder ##########
     for key in results:
@@ -80,7 +72,5 @@ if(TRAINING):
     plot(results, utils, direc)
 
 else:
-
-   # spiking_to_continous(utils)
 
     plot_from_resources(resources, utils, direc)

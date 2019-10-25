@@ -19,19 +19,11 @@ def runnet(sbs, utils, F, C_dis, C_real, duration, x):
 
     O_DYNAPS = sbs.execute()
 
-    """for t in range(1, duration):
-        R[:,t] = (1-utils.lam*utils.dt)*R[:,t-1] + O_DYNAPS[:,t]
-
-
-    for t in range(1, duration):
-        #! V_recons[:,t] = 0.1*V_recons[:,t-1] + np.matmul(F.T, x[:,t]) + np.matmul(C_real, R[:,t-1])
-        V_recons[:,t] = 0.1*V_recons[:,t-1] + np.matmul(F.T, x[:,t]) + R[:,t]"""
-
     for t in range(1, duration):
         V_recons[:,t] = 0.1*V_recons[:,t-1] + np.matmul(F.T, x[:,t]) + np.matmul(C_real, R[:,t-1])
         current_tresh = utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)
         (m,k) = my_max(V_recons[:,t] - current_tresh.ravel())
-        has_spike = np.sum(O_DYNAPS[k,max(0,t-delta_t):min(utils.Ntime-1,t+delta_t)]) > 0
+        has_spike = np.sum(O_DYNAPS[k,max(0,t-utils.alignment_delta_t):min(utils.Ntime-1,t+utils.alignment_delta_t)]) > 0
         r_tmp = R[:,t-1]
         if(m >= 0 and has_spike):
             ot = np.zeros(utils.Nneuron)

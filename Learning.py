@@ -2,66 +2,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 from Utils import my_max, ups_downs_to_O
 from runnet import *
+from progress.bar import ChargingBar
 import sys
 import os
 sys.path.append(os.path.join(os.getcwd(), "DYNAPS/"))
 from helper import signal_to_spike_refractory
 
 
-def spiking_to_continous(utils):
-
-    # Generate input
-    w = (1/(utils.sigma*np.sqrt(2*np.pi)))* np.exp(-((np.linspace(1,1000,1000)-500)**2)/(2*utils.sigma**2))
-    w = w / np.sum(w)
-    Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), utils.Ntime)).T
-    for d in range(utils.Nx):
-        Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
-
-    # Convert the input to the target
-    x = np.zeros(Input.shape)
-    for t in range(1,utils.Ntime):
-        x[:,t] = (1-utils.lam*utils.dt)*x[:,t-1] + utils.dt*Input[:,t]
-
-    # Generate spikes from continous input
-    #lams = [10**-i for i in range(5)]
-    lams = [0.0, 0.01, 0.001, 0.0001, 0.00001]
-    #Rs = [10**-i for i in range(5)]
-    Rs = [1.0, 0.9999, 0.999, 0.99, 0.9]
-    threshs = np.linspace(0.5, 80, 100)
-    old_err = -1
-    for lam in lams:
-        for R in Rs:
-            for thresh in threshs:
-                # err = run_trial(utils, Input, x, thresh, R, lam)
-                err = run_trial_FTMI(utils, Input, x, thresh, R, lam)
-                if(old_err == -1 or err < old_err):
-                    print(err)
-                    old_err = err
-                    b_lam = lam; b_R = R; b_thresh = thresh
-
-    print(("Best lam: %.4f Best R: %.4f Best Thresh: %.4f" % (b_lam, b_R, b_thresh)))
-    run_trial_FTMI(utils, Input, x, b_thresh, b_R, b_lam, plot=True)
-
-
-def run_trial_FTMI(utils, Input, x, delta_mod_tresh, R, lam, plot=False):
-    M = np.asarray([[1, -1, 0, 0], [0, 0, 1, -1]])
-    FTMI = np.zeros((utils.Nneuron, 1))
-    I = np.zeros((2*utils.Nx, utils.Ntime))
-    (OT_down, OT_up) = get_spiking_input(delta_mod_tresh, Input, utils.Nx, utils.Ntime)
-    for t in range(1, utils.Ntime):
-        ot = np.asarray([OT_up[0,t], OT_down[0,t], OT_up[1,t], OT_down[1,t]]).reshape((-1,1))
-        I[:,t] = ((1-lam)*I[:,t-1].reshape((-1,1)) + R*ot).ravel()
-
-    x_recon = np.matmul(M, I)
-    if(plot):
-        plt.plot(x.T)
-        plt.plot(x_recon.T)
-        plt.title("Signal reconstructed from spiking input")
-        plt.show()
-    return np.linalg.norm((x-x_recon).reshape(-1,),2)
-
 def discretize(C, min, max, number_of_bins):
-
+    """
+    Parameters:
+                C:              Matrix of shape (Nneurons,Nneurons)
+                min:            The minimum bin. All weights in or below that bin border are assigned the most negative,
+                                discrete weight
+                max:            The maximum bin
+                number_of_bins: Number of bins. The higher the number, the higher the precision.
+    Returns:
+                Discretized version of C
+    """
     _, bin_edges = np.histogram(C.reshape((-1,1)), bins = number_of_bins, range=(min,max))
     bin_indices = np.digitize(C.ravel(), bins = bin_edges, right = True)
     C_new_discretized = np.zeros(C.shape[0]**2)
@@ -77,12 +35,20 @@ def discretize(C, min, max, number_of_bins):
 
 
 def Learning(utils, F, C):
-
+    """
+    Parameters:
+                utils:   Object that holds various parameters used for training
+                F:       Initial feedforward matrix (real)
+                C:       Initial recurrent matrix (real)
+    Returns:  
+                results: Dictionary containing all trained and relevant variables
+    """
     TotTime = utils.Nit*utils.Ntime
 
     Fi = np.copy(F)
     Ci = np.copy(C)
 
+    # Parameters for discretization
     min = -0.35
     max = 0.42
     # number_of_bins = 100
@@ -126,20 +92,16 @@ def Learning(utils, F, C):
     w = (1/(utils.sigma*np.sqrt(2*np.pi)))* np.exp(-((np.linspace(1,1000,1000)-500)**2)/(2*utils.sigma**2))
     w = w / np.sum(w)
 
-    j = 1; l = 1
+    j = 1
 
     Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), utils.Ntime)).T
     for d in range(utils.Nx):
         Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
 
     Input.dump("DYNAPS/Resources/bias_input.dat")
-    print(("%d percent of learning done" % 0))
 
+    bar = ChargingBar('Learning', max=TotTime-1)
     for i in range(2, TotTime):
-
-        if((i/TotTime) > (l/100)):
-            print(("%d percent of learning done" % l))
-            l = l+1
 
         if((i % 2**j) == 0): # Save the matrices on an exponential scale
             Cs[j-1,:,:] = C # Indexing starts at 0
@@ -147,20 +109,10 @@ def Learning(utils, F, C):
             j = j+1
 
         if(((i-2) % utils.Ntime) == 0):
-            """variance = np.sum(np.var(V_recons, axis=1, ddof=1)) / (utils.Nneuron)
-            print(variance)"""
+            # Generate new input
             Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), utils.Ntime)).T
             for d in range(utils.Nx):
                 Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
-            """plt.plot(V_recons[5,:])
-            plt.show()
-            plt.plot(Rs[5,:])
-            plt.show()
-            coordinates = np.nonzero(OS)
-            plt.scatter(coordinates[1], coordinates[0]+1, marker='o', s=0.5)
-            plt.ylim((0,utils.Nneuron+1))
-            plt.yticks(ticks=np.linspace(0,utils.Nneuron,int(utils.Nneuron/2)+1))
-            plt.show()"""
 
             if(i == utils.Ntime + 2):
                 OS.dump("DYNAPS/Resources/target_OS.dat")
@@ -204,14 +156,6 @@ def Learning(utils, F, C):
         diff = (new_V_recon - current_thresh)
         neurons_above = np.linspace(0,utils.Nneuron-1, utils.Nneuron)[diff.ravel() >= 0].astype(np.int)
 
-
-        """# Do the integration reset of the reconstructed voltage
-        for i in range(utils.Nneuron):
-            diff = V_recon[i] - new_V_recon[i]
-            if(diff > utils.Thresh - 0.05):
-                V_recon[i] = current_thresh[i] - diff"""
-
-        
         if (m >= 0): # We have a spike
             O = 1
             # F[:,k] = (F[:,k].reshape((-1,1)) + utils.epsf*(utils.alpha*x - F[:,k].reshape((-1,1)))).ravel()
@@ -224,20 +168,17 @@ def Learning(utils, F, C):
             OS[k,t] = 1
         else:
             O = 0
-        
-        """r0[neurons_above] += 1
-        OS[neurons_above, t] = 1"""
             
         r0 = (1-utils.lam*utils.dt)*r0
         
-
         Rs[:,t] = r0.ravel()
 
         # Assign the new reconstructed voltage
-        V_recon = np.copy(new_V_recon) #! Try w/o copy
+        V_recon = new_V_recon
 
-
-    print("Learning complete")
+        bar.next()
+    bar.next()
+    bar.finish()
 
         
     ########## Compute the optimal decoder ##########
@@ -258,14 +199,17 @@ def Learning(utils, F, C):
     for t in range(1,TimeL):
         xL[:,t] = (1-utils.lam*utils.dt)*xL[:,t-1] + utils.dt*InputL[:,t-1]
 
-    print(("Computing %d decoders" % utils.T))
-
+    print("")
+    bar = ChargingBar('Decoders', max=utils.T)
     for i in range(utils.T):
         (rOL,_,_) = runnet_recon_x(utils.dt, utils.lam, Fs[i,:,:], OT_upL, OT_downL, Cs[i,:,:], utils.Nneuron, TimeL, utils.Thresh, xL, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
         Dec = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T # Returns solution that solves xL = Dec*r0L
         Decs[i,:,:] = Dec
+        bar.next()
+    bar.next()
+    bar.finish()
+    print("")
 
-    print("Computing the errors")
     TimeT = 1000 #! Was 10000
     MeanPrate = np.zeros((1,utils.T))
     Error = np.zeros((1,utils.T))
@@ -273,7 +217,7 @@ def Learning(utils, F, C):
     xT = np.zeros((utils.Nx, TimeT))
 
     Trials = 5
-
+    bar = ChargingBar('Errors', max=Trials)
     for r in range(Trials):
         InputT = utils.A*(np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), TimeT)).T
 
@@ -289,13 +233,12 @@ def Learning(utils, F, C):
         for i in range(utils.T):
             (rOT, OT, VT) = runnet_recon_x(utils.dt, utils.lam, Fs[i,:,:], OT_upT, OT_downT, Cs[i,:,:], utils.Nneuron, TimeT, utils.Thresh, xT, x_recon_lam = x_recon_lam, x_recon_R = x_recon_R, delta_F=delta_F)
             xestc = np.matmul(Decs[i,:,:], rOT) # Decode the rate vector
-            """plt.plot(xestc.T)
-            plt.plot(xT.T)
-            plt.show()"""
             Error[0,i] = Error[0,i] + np.sum(np.var(xT-xestc, axis=1, ddof=1)) / (np.sum(np.var(xT, axis=1, ddof=1))*Trials)
             MeanPrate[0,i] = MeanPrate[0,i] + np.sum(OT) / (TimeT*utils.dt*utils.Nneuron*Trials)
             MembraneVar[0,i] = MembraneVar[0,i] + np.sum(np.var(VT, axis=1, ddof=1)) / (utils.Nneuron*Trials)
-
+        bar.next()
+    bar.next()
+    bar.finish()
 
     ErrorC = np.zeros((1,utils.T))
     for i in range(utils.T):
@@ -307,8 +250,6 @@ def Learning(utils, F, C):
         Cnorm = np.sum(CurrC**2)
         ErrorC[0,i] = np.sum(np.sum((CurrC - optscale*Copt)**2 ,axis=0)) / Cnorm
     
-    ########## Plotting ##########
-
     return_dict = {
         "Fi": Fi,
         "Ci": Ci,
