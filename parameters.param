@@ -1,5 +1,5 @@
 {
-    "Nit" : 140,
+    "Nit" : 10,
     "Nneuron" : 20,
     "Nx" : 2,
     "Thresh" : 0.5,
@@ -18,5 +18,5 @@
     "R": 1000,
     "dynapse_maximal_synapse_ff": 8,
     "dynapse_maximal_synapse_o": 2,
-    "alignment_delta_t": 20
+    "alignment_delta_t": 10
 }

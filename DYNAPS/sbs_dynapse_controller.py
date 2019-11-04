@@ -120,13 +120,13 @@ class SBSController():
 
         O_DYNAPS_sbs[neuron_ids, times] = 1
 
-        """if(self.debug):
+        if(self.debug):
             coordinates = np.nonzero(O_DYNAPS_sbs)
             plt.figure(figsize=(18, 6))
             plt.scatter(coordinates[1], coordinates[0]+1, marker='o', s=0.5, c='k')
             plt.ylim((0,self.num_neurons+1))
             plt.yticks(ticks=np.linspace(0,self.num_neurons,int(self.num_neurons/2)+1))
-            plt.show()"""
+            plt.show()
 
         return O_DYNAPS_sbs
 
@@ -316,7 +316,7 @@ class SBSController():
     Pre: Weight matrix must be discretized and sum of each row must be below maximum number of neurons allowed.
     """
     def set_recurrent_weight_directly(self, C_discrete):
-        number_available_per_neuron = 62 - np.sum(np.abs(self.F), axis=1)
+        number_available_per_neuron = 60 - np.sum(np.abs(self.F), axis=1)
         assert (number_available_per_neuron - np.sum(np.abs(C_discrete), axis=1) >= 0).all(), "More synapses used than available"
         self.C = C_discrete.astype(np.int)
 
@@ -351,9 +351,9 @@ class SBSController():
         
         assert (C_new_discrete <= max_syn).all() and (C_new_discrete >= -max_syn).all(), "Error, have value > or < than max/min in Omega"
                     
-        number_available_per_neuron = 62 - np.sum(np.abs(self.F), axis=1)
+        number_available_per_neuron = 60 - np.sum(np.abs(self.F), axis=1)
 
-        if(not ((number_available_per_neuron - np.sum(np.abs(C_new_discrete), axis=1)) >= 0).all()):
+        if(not (((number_available_per_neuron - np.sum(np.abs(C_new_discrete), axis=1)) >= 0).all())):
             # Reduce the number of weights here, if necessary
 
             for idx in range(C_new_discrete.shape[0]):
@@ -387,7 +387,7 @@ class SBSController():
         if(self.debug):
             print("Number of neurons used: %d / %d" % (np.sum(np.abs(C_new_discrete)), np.sum(number_available_per_neuron)))
 
-        self.C = C_new_discrete
-        return C_new_discrete
+        self.C = np.copy(C_new_discrete)
+        return np.copy(C_new_discrete)
 
 

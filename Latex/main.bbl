@@ -1,0 +1,15 @@
+\begin{thebibliography}{1}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Chow and Liu(1968)]{chow:68}
+C.~K. Chow and C.~N. Liu.
+\newblock Approximating discrete probability distributions with dependence
+  trees.
+\newblock \emph{IEEE Transactions on Information Theory}, IT-14\penalty0
+  (3):\penalty0 462--467, 1968.
+
+\end{thebibliography}

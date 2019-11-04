@@ -8,10 +8,10 @@ import sbs_dynapse_controller
 import sys
 import os
 import numpy as np
-from DYNAPS_Learning import Learning, align_slow_signal, tune_biases
+from DYNAPS_Learning import Learning, run_testing
 sys.path.append(os.path.join(os.getcwd(),"../"))
 from Utils import Utils
-from plotting import plot
+from plotting import plot_DYNAPS
 import traceback
 import argparse
 
@@ -19,13 +19,12 @@ parser = argparse.ArgumentParser(description='Training of optimal spike based si
 parser.add_argument('-d', help='debug mode on',  action='store_true')
 parser.add_argument('-cc', help='clear the CAMs on the chip',  action='store_true')
 parser.add_argument('-t', help='test on new input', action='store_true')
-parser.add_argument('-b', help='find optimal chip biases', action='store_true')
+parser.add_argument('-p', help='plot previously recorded results', action='store_true')
 args = vars(parser.parse_args())
 debug = args['d']
 clear_cam = args['cc']
 testing = args['t']
-find_bias = args['b']
-
+plot = args['p']
 
 def clean_up_conn(sbs):
     for n in sbs.population:
@@ -39,7 +38,7 @@ self_path = self_path[0:self_path.rfind('/')]
 
 sbs = sbs_dynapse_controller.SBSController.from_default(clear_cam = clear_cam, debug=debug)
 print("Setting DYNAPS parameters...")
-sbs.c.execute("exec(open('" + self_path + "/Resources/balanced.py').read())")
+sbs.c.execute("exec(open('" + self_path + "/Resources/DYNAPS/balanced.py').read())")
 sbs.model.apply_diff_state()
 
 utils = Utils.from_json(sbs.parameters)
@@ -68,7 +67,7 @@ for i in range(FtM.shape[1]): # for all columns
     FtM[:,i] = FtM[:,i] / (max(FtM[:,i]) - min(FtM[:,i])) * 2*utils.dynapse_maximal_synapse_ff
 FtM = np.asarray(FtM, dtype=int)
 
-if(not testing and not find_bias):
+if(not testing and not plot):
 
     try:
         results = Learning(sbs, utils, F, FtM, C_initial)
@@ -76,7 +75,26 @@ if(not testing and not find_bias):
             results[key].dump(os.path.join(resources, ("%s.dat" % key)))
 
         ########## Plotting ##########
-        plot(results, utils, resources)
+        plot_DYNAPS(utils, resources)
+
+    except Exception:
+        print("Cleaned up conns.")
+        traceback.print_exc()
+        print(np.sum(np.abs(sbs.C), axis=1))
+        print(sbs.C)
+        clean_up_conn(sbs)
+    except KeyboardInterrupt:
+        print("Cleaned up conns.")
+        clean_up_conn(sbs)
+    else:
+        print("Cleaned up conns.")
+        clean_up_conn(sbs)
+
+elif(testing):
+
+    try:
+        # tune_biases(sbs, utils)
+        run_testing(sbs, utils)
 
     except Exception:
         print("Cleaned up conns.")
@@ -89,11 +107,9 @@ if(not testing and not find_bias):
         print("Cleaned up conns.")
         clean_up_conn(sbs)
 
-elif(find_bias):
-
+elif(plot):
     try:
-        # tune_biases(sbs, utils)
-        align_slow_signal(sbs, utils)
+        plot_DYNAPS(utils, resources)
 
     except Exception:
         print("Cleaned up conns.")

@@ -6,57 +6,154 @@ import os
 from runnet import *
 
 
-def plot(results, utils, direc):
+def plot_DYNAPS(utils, direc):
 
-    Error = results["Error"]
-    MeanPrate = results["MeanPrate"]
-    MembraneVar = results["MembraneVar"]
-    ErrorC = results["ErrorC"]
+    try:
+        Error = np.load("Resources/DYNAPS/DYNAPS_Error.dat", allow_pickle=True)
+        MeanPrate = np.load("Resources/DYNAPS/DYNAPS_MeanPrate.dat", allow_pickle=True)
+        MembraneVar = np.load("Resources/DYNAPS/DYNAPS_MembraneVar.dat", allow_pickle=True)
+        ErrorC = np.load("Resources/DYNAPS/DYNAPS_ErrorC.dat", allow_pickle=True)
+        O_DYNAPS_initial = np.load("Resources/DYNAPS/O_DYNAPS_initial.dat", allow_pickle=True)
+        O_DYNAPS_after = np.load("Resources/DYNAPS/O_DYNAPS_after.dat", allow_pickle=True)
+        xestc_initial = np.load("Resources/DYNAPS/DYNAPS_xestc_initial.dat", allow_pickle=True)
+        xestc_after = np.load("Resources/DYNAPS/DYNAPS_xestc_after.dat", allow_pickle=True)
+        X = np.load("Resources/DYNAPS/DYNAPS_xT.dat", allow_pickle=True)
+
+    except:
+        print("Error loading data.")
+        return
+
+
+    title_font_size = 6
+    axis_font_size = 5
+    ticks_font_size = 5
+    linewidth = 0.5
+
+    color = 'C1'
+    color_true = 'C1'
+    color_recon = 'C2'
+    color_third = 'C3'
+    markersize = 0.00001
+    marker = ','
+    markercolor = 'b'
+    alpha = 1.0
+
+
+    plt.figure(figsize=(6.00, 5.51))
+    subplot = 611
+    plt.title('Initial reconstruction (green) of the target signal (red)', fontname="Times New Roman" ,fontsize=title_font_size)
+    for i in range(utils.Nx):
+        plt.subplot(subplot)
+        if(i==0):
+            plt.title('Initial reconstruction (green) of the target signal (red)', fontname="Times New Roman" ,fontsize=title_font_size)
+        plt.plot(X[i,:], color=color_true, linewidth=linewidth)
+        plt.plot(xestc_initial[i,:], color=color_recon, linewidth=linewidth)
+        plt.xticks([],[]); plt.yticks([],[])
+        subplot = subplot+1
+    
+    # Plot initial spike trains
+    plt.subplot(subplot)
+    plt.title('Initial spike trains', fontname="Times New Roman" ,fontsize=title_font_size)
+    coordinates_intial = np.nonzero(O_DYNAPS_initial)
+    plt.scatter(coordinates_intial[1], coordinates_intial[0], s=markersize, marker=marker, c=markercolor, alpha=alpha)
+    plt.xticks([],[]); plt.yticks([],[])
+    subplot = subplot+1
+
+    # Plot after learning
+    for i in range(utils.Nx):
+        plt.subplot(subplot)
+        if(i==0):
+            plt.title('Post-learning reconstruction (green) of the target signal (red)', fontname="Times New Roman" ,fontsize=title_font_size)
+        plt.plot(X[i,:], color=color_true, linewidth=linewidth)
+        plt.plot(xestc_after[i,:], color=color_recon, linewidth=linewidth)
+        plt.xticks([],[]); plt.yticks([],[])
+        subplot = subplot+1
+
+    # Plot post-learning spike trains
+    plt.subplot(subplot)
+    plt.title('Post-learning spike trains', fontname="Times New Roman" ,fontsize=title_font_size)
+    coordinates_after = np.nonzero(O_DYNAPS_after)
+    plt.scatter(coordinates_after[1], coordinates_after[0], s=markersize, marker=marker, c=markercolor, alpha=alpha)
+    plt.xticks([],[]); plt.yticks([],[])
+    subplot = subplot+1
+
+    plt.tight_layout()    
+    name = "DYNAPS_reconstruction.eps"
+    plt.savefig(os.path.join(direc, name), format="eps")
+    plt.show()
+
+
+    #################################################################################
+
     T = utils.T
     dt = utils.dt
 
     loglog_x = 2**np.linspace(1,T,T)
 
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(6.010, 4.73))
 
-    plt.subplot(311)
-    plt.plot(loglog_x*dt, Error.reshape((-1,1)), 'k')
+    plt.subplot(411)
+
+    plt.plot(loglog_x, ErrorC.reshape((-1,1)), color=color, linewidth=linewidth)
+
+    plt.xscale('log')
+    plt.xlabel('Time', fontname="Times New Roman" ,fontsize=axis_font_size)
+    plt.ylabel('Distance to optimal weights', fontname="Times New Roman" ,fontsize=axis_font_size)
+    plt.title('Weight Convergence', fontname="Times New Roman" ,fontsize=title_font_size)
+    ax = plt.gca()
+    for tick in ax.xaxis.get_major_ticks():
+        tick.label.set_fontsize(ticks_font_size)
+    for tick in ax.yaxis.get_major_ticks():
+        tick.label.set_fontsize(ticks_font_size)
+
+    plt.subplot(412)
+    
+    plt.plot(loglog_x, Error.reshape((-1,1)), color=color, linewidth=linewidth)
+    
     plt.xscale('log')
     plt.ylabel('log')
-    plt.xlabel('Time')
-    plt.ylabel('Decoding Error')
-    plt.title('Evolution of the Decoding Error Through Learning')
+    plt.xlabel('Time', fontname="Times New Roman" ,fontsize=axis_font_size)
+    plt.ylabel('Decoding Error', fontname="Times New Roman" ,fontsize=axis_font_size)
+    plt.title('Evolution of the Decoding Error Through Learning', fontname="Times New Roman" ,fontsize=title_font_size)
+    ax = plt.gca()
+    for tick in ax.xaxis.get_major_ticks():
+        tick.label.set_fontsize(ticks_font_size)
+    for tick in ax.yaxis.get_major_ticks():
+        tick.label.set_fontsize(ticks_font_size)
 
-    plt.subplot(312)
-    plt.plot(loglog_x*dt, MeanPrate.reshape((-1,1)), 'k')
+    plt.subplot(413)
+    plt.plot(loglog_x, MeanPrate.reshape((-1,1)), color=color, linewidth=linewidth)
     plt.xscale('log')
-    plt.xlabel('Time')
-    plt.ylabel('Mean Rate per neuron')
-    plt.title('Evolution of the Mean Population Firing Rate Through Learning')
+    plt.xlabel('Time', fontname="Times New Roman" ,fontsize=axis_font_size)
+    plt.ylabel('Mean Rate per neuron', fontname="Times New Roman" ,fontsize=axis_font_size)
+    plt.title('Evolution of the Mean Population Firing Rate Through Learning', fontname="Times New Roman" ,fontsize=title_font_size)
+    ax = plt.gca()
+    for tick in ax.xaxis.get_major_ticks():
+        tick.label.set_fontsize(ticks_font_size)
+    for tick in ax.yaxis.get_major_ticks():
+        tick.label.set_fontsize(ticks_font_size)
 
-    plt.subplot(313)
-    plt.plot(loglog_x*dt, MembraneVar.reshape((-1,1)), 'k')
+    plt.subplot(414)
+    plt.plot(loglog_x, MembraneVar.reshape((-1,1)), color=color, linewidth=linewidth)
     plt.xscale('log')
     plt.ylabel('log')
-    plt.xlabel('Time')
-    plt.ylabel('Voltage Variance per Neuron')
-    plt.title('Evolution of the Variance of the Membrane Potential')
+    plt.xlabel('Time', fontname="Times New Roman" ,fontsize=axis_font_size)
+    plt.ylabel('Voltage Variance per Neuron', fontname="Times New Roman" ,fontsize=axis_font_size)
+    plt.title('Evolution of the Variance of the Membrane Potential', fontname="Times New Roman" ,fontsize=title_font_size)
+    ax = plt.gca()
+    for tick in ax.xaxis.get_major_ticks():
+        tick.label.set_fontsize(ticks_font_size)
+    for tick in ax.yaxis.get_major_ticks():
+        tick.label.set_fontsize(ticks_font_size)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(direc, "errors.png"))
-
-    plt.figure(figsize=(12, 6))
-
-    plt.plot(loglog_x*dt, ErrorC.reshape((-1,1)), 'k')
-    plt.xscale('log')
-    plt.ylabel('log')
-    plt.xlabel('Time')
-    plt.ylabel('Distance to optimal weights')
-    plt.title('Weight Convergence')
+    name = "DYNAPS_convergence.eps"
+    plt.savefig(os.path.join(direc, name), format="eps")
 
     plt.tight_layout()
-    plt.savefig(os.path.join(direc, "weight_convergence.png"))
     plt.show()
+
+    
 
 def plot_from_resources(resources_direc, utils, direc):
 
