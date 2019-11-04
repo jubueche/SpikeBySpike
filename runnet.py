@@ -1,58 +1,37 @@
 import numpy as np  
 from Utils import my_max
-import json
-import os
-import sys
-sys.path.append(os.path.join(os.getcwd(), "DYNAPS/"))
 from helper import signal_to_spike_refractory
 
+def runnet(utils,dt, lam, F, Input, C, Nneuron, duration, Thresh, update_all = False, use_spiking = False):
+    r0 = np.zeros((Nneuron, duration))
+    O = np.zeros((Nneuron, duration))
+    V = np.zeros((Nneuron, duration))
 
-def runnet_recon_x(dt, lam, F, OT_up, OT_down, C, Nneuron, Ntime, Thresh, x, x_recon_lam = 0.001, x_recon_R = 1.0, delta_F = 0.1):
+    I = np.zeros((2*utils.Nx, 1))
+    M = np.asarray([[1,-1,0,0],[0,0,1,-1]])
+    x_recon_lam = 0.001
+    x_recon_R = 40.3
 
-    try:
-        with open(os.path.join(os.getcwd(), "parameters.param"), 'r') as f:
-                parameters = json.load(f)
-    except:
-        print("File not found. Looking in upper directory.")
-        with open(os.path.join(os.getcwd(), "../parameters.param"), 'r') as f:
-            parameters = json.load(f)
+    if(use_spiking):
+        (OT_down, OT_up) = get_spiking_input(30, Input, utils.Nx, duration)
 
-    Nx = F.shape[0]
-    I = np.zeros((2*Nx, 1))
-    M = np.asarray([[1, -1, 0, 0], [0, 0, 1, -1]])
-    FTMI = np.zeros((Nneuron, 1))
-    r0 = np.zeros((Nneuron, Ntime))
-    O = np.zeros((Nneuron, Ntime))
-    V = np.zeros((Nneuron, Ntime))
-    V_recon = np.zeros((Nneuron, Ntime))
-    x_recon = np.zeros((Nx, 1)) # (2,1)
-    
-    for t in range(1, Ntime):
+    for t in range(1, duration):
+        if(use_spiking):
+            ot_in = np.asarray([OT_up[0,t], OT_down[0,t], OT_up[1,t], OT_down[1,t]]).reshape((-1,1))
+            I = (1-x_recon_lam)*I + x_recon_R*ot_in
+            FTMI = np.matmul(np.matmul(F.T, M), I)
+            V[:,t] = ((1-utils.lam*utils.dt)*V[:,t-1].reshape((-1,1)) + utils.dt*FTMI.reshape((-1,1)) + np.matmul(C, O[:,t-1].reshape((-1,1))) + 0.001*np.random.randn(Nneuron,1)).ravel()
+        else:    
+            V[:,t] = ((1-lam*dt)*V[:,t-1].reshape((-1,1)) + dt*np.matmul(F.T, Input[:,t-1].reshape((-1,1))) + np.matmul(C, O[:,t-1].reshape((-1,1))) + 0.001*np.random.randn(Nneuron,1)).ravel()
+        (m,k) = my_max(V[:,t].reshape((-1,1)) - Thresh-0.01*np.random.randn(Nneuron, 1))
 
-        ot = np.asarray([OT_up[0,t], OT_down[0,t], OT_up[1,t], OT_down[1,t]]).reshape((-1,1))
-        
-        # V[:,t] = ((1-lam*dt)*V[:,t-1].reshape((-1,1)) + delta_F*FTMI.reshape((-1,1)) + np.matmul(C, O[:,t-1].reshape((-1,1))) + 0.001*np.random.randn(Nneuron,1)).ravel()
-        V[:,t] = 0.1*V[:,t-1] + np.matmul(F.T, x[:,t]) + np.matmul(C, r0[:,t-1]) + 0.001*np.random.randn(Nneuron,1).ravel()
-        
-
-
-        current_thresh = Thresh-0.01*np.random.randn(Nneuron, 1)
-        diff = (V[:,t].ravel() - current_thresh.ravel())
-        neurons_above = np.linspace(0,Nneuron-1, Nneuron)[diff >= 0].astype(np.int)
-
-        I = (1-x_recon_lam)*I + x_recon_R*ot
-        FTMI = np.matmul(np.matmul(F.T, M), I)
-
-        (m,k) = my_max(V[:,t].reshape((-1,1)) - current_thresh)
-
-        r_tmp = r0[:,t-1]
-        if(m>=0):
+        neurons_that_spiked = (V[:,t].reshape((-1,1)) - Thresh-0.01*np.random.randn(Nneuron, 1)) >= 0
+        if(update_all):
+            O[neurons_that_spiked.ravel(),t] = 1.0
+        elif (m >= 0):
             O[k,t] = 1
-            r_tmp[k] += 1
-        """r_tmp[neurons_above] += 1
-        O[neurons_above, t] = 1"""
         
-        r0[:,t] = (1-lam*dt)*r_tmp
+        r0[:,t] = ((1-lam*dt)*(r0[:,t-1].reshape((-1,1))+1*O[:,t].reshape((-1,1)))).ravel()
 
     return (r0, O, V)
 
@@ -74,4 +53,3 @@ def get_spiking_input(threshold, Input, Nx, Ntime):
         OT_down[i,np.asarray(downs[i], dtype=int)] = 1
 
     return (OT_down, OT_up)
-
