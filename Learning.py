@@ -4,6 +4,7 @@ from Utils import my_max
 from runnet import *
 import warnings
 from progress.bar import ChargingBar
+import os
 
 
 def discretize(Omega, number_of_bins):
@@ -78,7 +79,47 @@ def discretize_linear(Omega, number_of_bins):
 
     return C
 
-def Learning(utils, F, C, update_all = False, discretize_weights = False, number_of_bins = 100, remove_positive = False, use_spiking = False, use_batched=False, use_batched_nn=False):
+def get_input(duration, utils, w, audio_helper = None, use_audio = False, training = True, digit = -1):
+
+    if(not use_audio):
+        Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), duration)).T
+        Input[:,0:100] = 0
+        for d in range(utils.Nx):
+            Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
+
+        return Input
+
+    else:
+        if(training):
+            label, Input = audio_helper.get_next_training(digit)
+        else:
+            label, Input = audio_helper.get_next_test(digit)
+        
+
+        Input = Input.reshape((utils.Nx,-1))
+        for d in range(utils.Nx):
+            Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
+
+        """plt.plot(Input.T)
+        plt.show()"""
+
+        X = np.zeros(Input.shape)
+        for t in range(Input.shape[1]):
+            X[:,t] = (1-utils.lam*utils.dt)*X[:,t-1] + utils.dt*Input[:,t]
+        
+        
+        """plt.plot(X.T)
+        plt.show()"""
+
+        return label, Input
+
+
+
+def Learning(utils, F, C, update_all = False, discretize_weights = False, number_of_bins = 100,
+            remove_positive = False, use_spiking = False, use_batched=False, use_batched_nn=False, use_audio=False, audio_helper = None):
+
+    if(use_audio and audio_helper is None):
+        raise Exception("Audio helper is None")
 
     TotTime = utils.Nit*utils.Ntime
 
@@ -121,8 +162,12 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
     Input = np.zeros((utils.Nx, utils.Ntime))
     Id = np.eye(utils.Nneuron)
 
-    w = (1/(utils.sigma*np.sqrt(2*np.pi)))* np.exp(-((np.linspace(1,1000,1000)-500)**2)/(2*utils.sigma**2))
-    w = w / np.sum(w)
+    if(not use_audio):
+        w = (1/(utils.sigma*np.sqrt(2*np.pi)))* np.exp(-((np.linspace(1,1000,1000)-500)**2)/(2*utils.sigma**2))
+        w = w / np.sum(w)
+    else:
+        w = (1/(utils.sigma*np.sqrt(2*np.pi)))* np.exp(-((np.linspace(1,500,500)-250)**2)/(2*utils.sigma**2))
+        w = w / np.sum(w)
 
     j = 1
 
@@ -135,10 +180,11 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
             j = j+1
 
         if(((i-2) % utils.Ntime) == 0):
-            Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), utils.Ntime)).T
-            Input[:,0:100] = 0
-            for d in range(utils.Nx):
-                Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
+
+            if(use_audio):
+                _, Input = get_input(utils.Ntime, utils, w, audio_helper=audio_helper, use_audio=use_audio,training=True)
+            else:
+                Input = get_input(utils.Ntime, utils, w, audio_helper=audio_helper, use_audio=use_audio,training=True)
 
             # Convert to spikes
             if(use_spiking):
@@ -248,16 +294,20 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
     bar.finish()
         
     ########## Compute the optimal decoder ##########
+    if(not use_audio):
+        TimeL = 50000
+    else:
+        TimeL = 500
 
-    TimeL = 50000
     xL = np.zeros((utils.Nx, TimeL))
     Decs = np.zeros([utils.T, utils.Nx, utils.Nneuron])
 
     # Generate new input
-    InputL = 0.3*utils.A*(np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), TimeL)).T
-    for d in range(utils.Nx):
-        InputL[d,:] = np.convolve(InputL[d,:], w, 'same')
-        
+    if(use_audio):
+        label, InputL = get_input(TimeL, utils, w, audio_helper=audio_helper, use_audio = use_audio,training=True)
+    else:
+        InputL = get_input(TimeL, utils, w, audio_helper=audio_helper, use_audio = use_audio,training=True)
+
     # Compute the target output by a leaky integration of the input
     for t in range(1,TimeL):
         xL[:,t] = (1-utils.lam*utils.dt)*xL[:,t-1] + utils.dt*InputL[:,t-1]
@@ -272,21 +322,27 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
         bar.next()
     bar.next(); bar.finish()
 
-    TimeT = 10000
+    if(not use_audio):
+        TimeT = 10000
+    else:
+        TimeT = 500
+
     MeanPrate = np.zeros((1,utils.T))
     Error = np.zeros((1,utils.T))
-    myError = np.zeros((1,utils.T)) #! Added by julianb
     MembraneVar = np.zeros((1,utils.T))
     xT = np.zeros((utils.Nx, TimeT))
+    X_save = np.zeros((utils.Nx, TimeT))
+    OT_sim = np.zeros((utils.Nneuron, TimeT))
 
     Trials = 10
 
     print(""); bar = ChargingBar('Errors', max=Trials*utils.T)
     for r in range(Trials):
-        InputT = utils.A*(np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), TimeT)).T
 
-        for d in range(utils.Nx):
-            InputT[d,:] = np.convolve(InputT[d,:], w, 'same')
+        if(use_audio):
+            label, InputT = get_input(TimeT, utils, w, audio_helper=audio_helper, use_audio=use_audio,training=False)
+        else:
+            InputT = get_input(TimeT, utils, w, audio_helper=audio_helper, use_audio=use_audio,training=False)
 
         # Compute the target output by leaky integration of InputT
         for t in range(1,TimeT):
@@ -303,11 +359,58 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
             for idx,m in enumerate(mvar):
                 mvar[idx] = min(500,m)
             MembraneVar[0,i] = MembraneVar[0,i] + np.sum(mvar) / (utils.Nneuron*Trials)
-            myError[0,i] = np.linalg.norm(xT-xestc, 2)
+
+            if(r == 0 and i == utils.T-1):
+                X_save = np.copy(xT)
+                OT_sim = np.copy(OT)
+
             bar.next()
         bar.next()
     bar.next(); bar.finish()
 
+
+    """if(use_audio):
+        # Generate a training set and test set from this
+        data_directory = os.path.join(os.getcwd(), "DYNAPS/Resources/Simulation/Dataset/")
+        if(not os.path.exists(data_directory)):
+            os.mkdir(data_directory)
+
+        xT = np.zeros((utils.Nx, utils.Ntime))
+        Data_training = np.zeros([audio_helper.train_number,utils.Nneuron, utils.Ntime])
+        Data_testing = np.zeros([audio_helper.test_number,utils.Nneuron, utils.Ntime])
+        label_training = np.zeros(audio_helper.train_number)
+        label_testing = np.zeros(audio_helper.test_number)
+        c_training = 0; c_testing = 0
+        for i in range(10):
+            for j in range(len(audio_helper.data_train[i])):
+                label, Input = get_input(utils.Ntime, utils, w, audio_helper=audio_helper, use_audio=True, training=True,digit=i)
+
+                for t in range(1,utils.Ntime):
+                    xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*Input[:,t-1]
+
+                (rOT, OT, _) = runnet(utils,utils.dt, utils.lam, F, Input, C, utils.Nneuron, utils.Ntime, utils.Thresh,use_spiking=use_spiking)
+                Data_training[c_training,:,:] = OT
+                #Data_training[c_training,:,:] = rOT
+                label_training[c_training] = label
+                c_training += 1
+
+            for j in range(len(audio_helper.data_test[i])):
+                label, Input = get_input(utils.Ntime, utils, w, audio_helper=audio_helper, use_audio=True, training=False,digit=i)
+
+                for t in range(1,utils.Ntime):
+                    xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*Input[:,t-1]
+
+                (rOT, OT, _) = runnet(utils,utils.dt, utils.lam, F, Input, C, utils.Nneuron, utils.Ntime, utils.Thresh,use_spiking=use_spiking)
+                Data_testing[c_testing,:,:] = OT
+                #Data_testing[c_testing,:,:] = rOT
+                label_testing[c_testing] = label
+                c_testing += 1
+
+        Data_testing.dump(os.path.join(data_directory, "Testing_spikes.dat"))
+        Data_training.dump(os.path.join(data_directory, "Training_spikes.dat"))
+        label_training.dump(os.path.join(data_directory, "Training_labels.dat"))
+        label_testing.dump(os.path.join(data_directory, "Testing_labels.dat"))"""
+        
 
     ErrorC = np.zeros((1,utils.T))
     for i in range(utils.T):
@@ -335,7 +438,9 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
         "MeanPrate": MeanPrate,
         "MembraneVar": MembraneVar,
         "ErrorC": ErrorC,
-        "w": w
+        "w": w,
+        "OT_sim": OT_sim,
+        "xT": X_save
         }
 
     return return_dict

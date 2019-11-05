@@ -1,94 +1,26 @@
 import numpy as np  
-import math
-import warnings
+from AudioHelper import AudioHelper
+import matplotlib.pyplot as plt
+from scipy.signal import resample
 
-def prob_round(x):
-    sign = np.sign(x)
-    x = abs(x)
-    is_up = np.random.random() < x-int(x)
-    round_func = math.ceil if is_up else math.floor
-    return sign * round_func(x)
+audio = AudioHelper()
+t,sample = audio.get_random_sample()
 
-def stochastic_round(C_real, F, min=-0.339, max=0.412):
-    
+factor = int(t / 1000)
+subsamples_n = int(len(sample) / factor)
+print("Subsampling to %d" % subsamples_n)
 
-    dynapse_maximal_synapse_o = 5
-    
-    np.fill_diagonal(C_real, 0)
-    
-    if(np.min(C_real) < min or np.max(C_real) > max):
-        w = ("Recurrent matrix exceeds minimum or maximum. Max: %.3f, Min: %.3f" % (np.max(C_real),np.min(C_real)))
-        warnings.warn(w, RuntimeWarning)
+"""plt.plot(sample)
+plt.show()"""
 
-    # All elements that are bigger than max will be set to max, same for min
-    C_real[C_real > max] = max
-    C_real[C_real < min] = min
+"""S = np.fft.fft(sample)
+freq = np.fft.fftfreq(sample.size, d=1/500)
 
-    # Scale the new weights with respect to the range
-    C_new_discrete = np.zeros(C_real.shape)
-    
-    #! Bin here
-    hist, bin_edges = np.histogram(C_real.reshape((-1,1)), bins = 2*dynapse_maximal_synapse_o, range=(min,max))
-    C_new_discrete = np.digitize(C_real.ravel(), bins = bin_edges, right = True).reshape(C_new_discrete.shape) - dynapse_maximal_synapse_o
-    
-    assert (C_new_discrete <= dynapse_maximal_synapse_o).all() and (C_new_discrete >= -dynapse_maximal_synapse_o).all(), "Error, have value > or < than max/min in Omega"
-    
-    number_available_per_neuron = 62 - np.sum(np.abs(F), axis=1)
+plt.plot(freq, S)
+plt.show()"""
 
-    for idx in range(C_new_discrete.shape[0]):
-        num_available = number_available_per_neuron[idx]
-        num_used = np.sum(np.abs(C_new_discrete[idx,:]))
+resampled = resample(sample, subsamples_n)
 
-        sorted_indices = np.flip(np.argsort(np.abs(C_new_discrete[idx,:])))
+plt.plot(resampled)
+plt.show()
 
-        sub_sum = 0; i = 0
-        while(sub_sum < num_available):
-            if(i == len(sorted_indices)):
-                break
-            sub_sum += np.abs(C_new_discrete[idx,:])[sorted_indices[i]]
-            i += 1
-
-        # Take indices until i-1
-        tmp = np.zeros(len(sorted_indices))
-        tmp[sorted_indices[0:i-1]] = C_new_discrete[idx,sorted_indices[0:i-1]]
-        C_new_discrete[idx,:] = tmp
-
-        """while(num_used > num_available):
-            ind_non_zero = np.nonzero(C_new_discrete[idx,:])[0]
-            rand_ind = np.random.choice(ind_non_zero, 1)[0]
-            if(C_new_discrete[idx,rand_ind] > 0):
-                C_new_discrete[idx,rand_ind] -= 1
-            else:
-                C_new_discrete[idx,rand_ind] += 1
-            num_used -= 1"""
-
-    assert ((number_available_per_neuron - np.sum(np.abs(C_new_discrete), axis=1)) >= 0).all(), "More synapses used than available"
-
-    #! Reduce weights here
-
-    # Stochastic round
-    return C_new_discrete
-
-
-# Obtained from running simulation for 140 iterations
-
-dynapse_maximal_synapse_ff = 5
-Nx = 2
-Nneuron = 20
-gamma = 1.0
-np.random.seed(42)
-
-F = 0.5*np.random.randn(Nx, Nneuron)
-# F matrix is normalized
-F = gamma*np.divide(F, np.sqrt(np.matmul(np.ones((Nx,1)), np.sum(F**2, axis=0).reshape((1,Nneuron)))))
-M = np.asarray([[1, -1, 0, 0], [0, 0, 1, -1]])
-FtM = np.matmul(F.T, M)
-for i in range(FtM.shape[1]): # for all columns
-    divisor = (max(FtM[:,i]) - min(FtM[:,i]))
-    if (divisor != 0):
-        FtM[:,i] = FtM[:,i] / divisor * 2*dynapse_maximal_synapse_ff
-FtM = np.asarray(FtM, dtype=int)
-
-C_real = np.random.rand(Nneuron,Nneuron)-0.5*np.eye(Nneuron)
-
-new_discrete_C = stochastic_round(C_real, FtM, min=-0.339, max=0.412)

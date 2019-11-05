@@ -6,15 +6,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from runnet import *
-
+from Learning import *
+from scipy.io.wavfile import write
+from scipy.signal import butter, lfilter
 
 def plot_DYNAPS(utils, direc):
 
     try:
-        Error = np.load("Resources/DYNAPS/DYNAPS_Error.dat", allow_pickle=True)
-        MeanPrate = np.load("Resources/DYNAPS/DYNAPS_MeanPrate.dat", allow_pickle=True)
-        MembraneVar = np.load("Resources/DYNAPS/DYNAPS_MembraneVar.dat", allow_pickle=True)
-        ErrorC = np.load("Resources/DYNAPS/DYNAPS_ErrorC.dat", allow_pickle=True)
         O_DYNAPS_initial = np.load("Resources/DYNAPS/O_DYNAPS_initial.dat", allow_pickle=True)
         O_DYNAPS_after = np.load("Resources/DYNAPS/O_DYNAPS_after.dat", allow_pickle=True)
         xestc_initial = np.load("Resources/DYNAPS/DYNAPS_xestc_initial.dat", allow_pickle=True)
@@ -25,6 +23,20 @@ def plot_DYNAPS(utils, direc):
         print("Error loading data.")
         return
 
+    try:
+        Error5 = np.load("Resources/DYNAPS/DYNAPS_Error_5.dat", allow_pickle=True)
+        MeanPrate5 = np.load("Resources/DYNAPS/DYNAPS_MeanPrate_5.dat", allow_pickle=True)
+        MembraneVar5 = np.load("Resources/DYNAPS/DYNAPS_MembraneVar_5.dat", allow_pickle=True)
+        ErrorC5 = np.load("Resources/DYNAPS/DYNAPS_ErrorC_5.dat", allow_pickle=True)
+
+        Error10 = np.load("Resources/DYNAPS/DYNAPS_Error_10.dat", allow_pickle=True)
+        MeanPrate10 = np.load("Resources/DYNAPS/DYNAPS_MeanPrate_10.dat", allow_pickle=True)
+        MembraneVar10 = np.load("Resources/DYNAPS/DYNAPS_MembraneVar_10.dat", allow_pickle=True)
+        ErrorC10 = np.load("Resources/DYNAPS/DYNAPS_ErrorC_10.dat", allow_pickle=True)
+
+    except:
+        print("Error loading data.")
+        return
 
     title_font_size = 6
     axis_font_size = 5
@@ -41,7 +53,7 @@ def plot_DYNAPS(utils, direc):
     alpha = 1.0
 
 
-    plt.figure(figsize=(6.00, 5.51))
+    plt.figure(figsize=(6.00, 3.94))
     subplot = 611
     plt.title('Initial reconstruction (green) of the target signal (red)', fontname="Times New Roman" ,fontsize=title_font_size)
     for i in range(utils.Nx):
@@ -92,61 +104,70 @@ def plot_DYNAPS(utils, direc):
 
     loglog_x = 2**np.linspace(1,T,T)
 
-    plt.figure(figsize=(6.010, 4.73))
+    plt.figure(figsize=(6.010, 3.94))
 
     plt.subplot(411)
+    ax = plt.gca()
 
-    plt.plot(loglog_x, ErrorC.reshape((-1,1)), color=color, linewidth=linewidth)
+    l1 = ax.plot(loglog_x, ErrorC5.reshape((-1,1)), color=color_true, linewidth=linewidth, label="Time-window size 5ms")
+    ax2 = ax.twinx()
+    l2 = ax2.plot(loglog_x, ErrorC10.reshape((-1,1)), color=color_recon, linewidth=linewidth, label="Time-window size 10ms")
+    lns = l1+l2
+    labs = [l.get_label() for l in lns]
+    L = ax.legend(lns, labs, loc=0, frameon=False, ncol=1, labelspacing=0.1)
+    plt.setp(L.texts, family='Times New Roman',fontsize=5)
 
     plt.xscale('log')
     plt.xlabel('Time', fontname="Times New Roman" ,fontsize=axis_font_size)
     plt.ylabel('Distance to optimal weights', fontname="Times New Roman" ,fontsize=axis_font_size)
     plt.title('Weight Convergence', fontname="Times New Roman" ,fontsize=title_font_size)
-    ax = plt.gca()
-    for tick in ax.xaxis.get_major_ticks():
-        tick.label.set_fontsize(ticks_font_size)
-    for tick in ax.yaxis.get_major_ticks():
-        tick.label.set_fontsize(ticks_font_size)
+    ax.tick_params(axis='y', labelsize=ticks_font_size, color=color_true)
+    ax.tick_params(axis='x', labelsize=ticks_font_size)
+    ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
 
     plt.subplot(412)
-    
-    plt.plot(loglog_x, Error.reshape((-1,1)), color=color, linewidth=linewidth)
-    
+    ax = plt.gca()
+    ax.plot(loglog_x, Error5.reshape((-1,1)), color=color_true, linewidth=linewidth)
+    ax2 = ax.twinx()
+    ax2.plot(loglog_x, Error10.reshape((-1,1)), color=color_recon, linewidth=linewidth)
+
     plt.xscale('log')
     plt.ylabel('log')
     plt.xlabel('Time', fontname="Times New Roman" ,fontsize=axis_font_size)
     plt.ylabel('Decoding Error', fontname="Times New Roman" ,fontsize=axis_font_size)
     plt.title('Evolution of the Decoding Error Through Learning', fontname="Times New Roman" ,fontsize=title_font_size)
-    ax = plt.gca()
-    for tick in ax.xaxis.get_major_ticks():
-        tick.label.set_fontsize(ticks_font_size)
-    for tick in ax.yaxis.get_major_ticks():
-        tick.label.set_fontsize(ticks_font_size)
+    ax.tick_params(axis='y', labelsize=ticks_font_size, color=color_true)
+    ax.tick_params(axis='x', labelsize=ticks_font_size)
+    ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
 
     plt.subplot(413)
-    plt.plot(loglog_x, MeanPrate.reshape((-1,1)), color=color, linewidth=linewidth)
+    ax = plt.gca()
+    ax.plot(loglog_x, MeanPrate5.reshape((-1,1)), color=color_true, linewidth=linewidth)
+    ax2 = ax.twinx()
+    ax2.plot(loglog_x, MeanPrate10.reshape((-1,1)), color=color_recon, linewidth=linewidth)
+
+
     plt.xscale('log')
     plt.xlabel('Time', fontname="Times New Roman" ,fontsize=axis_font_size)
     plt.ylabel('Mean Rate per neuron', fontname="Times New Roman" ,fontsize=axis_font_size)
     plt.title('Evolution of the Mean Population Firing Rate Through Learning', fontname="Times New Roman" ,fontsize=title_font_size)
-    ax = plt.gca()
-    for tick in ax.xaxis.get_major_ticks():
-        tick.label.set_fontsize(ticks_font_size)
-    for tick in ax.yaxis.get_major_ticks():
-        tick.label.set_fontsize(ticks_font_size)
+    ax.tick_params(axis='y', labelsize=ticks_font_size, color=color_true)
+    ax.tick_params(axis='x', labelsize=ticks_font_size)
+    ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
 
     plt.subplot(414)
-    plt.plot(loglog_x, MembraneVar.reshape((-1,1)), color=color, linewidth=linewidth)
+    ax = plt.gca()
+    ax.plot(loglog_x, MembraneVar5.reshape((-1,1)), color=color_true, linewidth=linewidth)
+    ax2 = ax.twinx()
+    ax2.plot(loglog_x, MembraneVar10.reshape((-1,1)), color=color_recon, linewidth=linewidth)
     plt.xscale('log')
     plt.ylabel('log')
     plt.xlabel('Time', fontname="Times New Roman" ,fontsize=axis_font_size)
     plt.ylabel('Voltage Variance per Neuron', fontname="Times New Roman" ,fontsize=axis_font_size)
     plt.title('Evolution of the Variance of the Membrane Potential', fontname="Times New Roman" ,fontsize=title_font_size)
-    ax = plt.gca()
-    for tick in ax.xaxis.get_major_ticks():
-        tick.label.set_fontsize(ticks_font_size)
-    for tick in ax.yaxis.get_major_ticks():
-        tick.label.set_fontsize(ticks_font_size)
+    ax.tick_params(axis='y', labelsize=ticks_font_size, color=color_true)
+    ax.tick_params(axis='x', labelsize=ticks_font_size)
+    ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
 
     plt.tight_layout()
     name = "DYNAPS_convergence.eps"
@@ -156,7 +177,11 @@ def plot_DYNAPS(utils, direc):
     plt.show()
 
 def plot_from_resources(resources_direc, utils, direc, update_all = False, discretize = False,
-                            remove_positive = False, use_spiking=False, use_batched=False,use_batched_nn=False):
+                            remove_positive = False, use_spiking=False, use_batched=False,use_batched_nn=False,
+                            use_audio=False, audio_helper = None):
+
+    if(use_audio and audio_helper is None):
+        raise Exception("Audio helper is None")
 
     # Generate new input signal
     if(discretize):
@@ -169,6 +194,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         ending = "_us.dat"
     elif(use_batched):
         ending = "_ub.dat"
+    elif(use_audio):
+        ending = "_audio.dat"
     else:
         ending = ".dat"
     
@@ -193,6 +220,7 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
     have_ua = True
     have_ub = True
     have_ub_nn = True
+    have_audio = True
 
     title_font_size = 6
     axis_font_size = 5
@@ -203,8 +231,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
     color_true = 'C1'
     color_recon = 'C2'
     color_third = 'C3'
-    markersize = 0.00001
-    marker = ','
+    markersize = 0.1
+    marker = 'o'
     markercolor = 'b'
     alpha = 1.0
 
@@ -272,16 +300,30 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
     except:
         print("No use batched update not normalized data")
         have_ub_nn = False
+
+    try:
+        MembraneVar_audio = np.load(os.path.join(resources_direc, "MembraneVar_audio.dat"), allow_pickle=True)
+        MeanPrate_audio = np.load(os.path.join(resources_direc, "MeanPrate_audio.dat"), allow_pickle=True)
+        ErrorC_audio = np.load(os.path.join(resources_direc, "ErrorC_audio.dat"), allow_pickle=True)
+        Error_audio = np.load(os.path.join(resources_direc, "Error_audio.dat"), allow_pickle=True)
+    except:
+        print("No use batched update not normalized data")
+        have_audio = False
    
 
     # Load kernel
     w = np.load(os.path.join(resources_direc, ("w%s" % ending)), allow_pickle=True)
     # Generate new test input
-    TimeT = 1000
+    if(use_audio):
+        TimeT = 500
+    else:
+        TimeT = 1000
     xT = np.zeros((utils.Nx, TimeT))
-    InputT = utils.A*(np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), TimeT)).T
-    for d in range(utils.Nx):
-            InputT[d,:] = np.convolve(InputT[d,:], w, 'same')
+
+    if(use_audio):
+        label, InputT = get_input(TimeT, utils, w, audio_helper=audio_helper, use_audio=use_audio,training=False, digit=7)
+    else:
+        InputT = get_input(TimeT, utils, w, audio_helper=audio_helper, use_audio=use_audio,training=False)
 
     # Compute the target output by leaky integration of InputT
     for t in range(1,TimeT):
@@ -317,6 +359,41 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
     # Run on end
     (rOT_after, OT_after, VT_after) = runnet(utils,utils.dt, utils.lam, F_after, InputT, C_after, utils.Nneuron, TimeT, utils.Thresh,use_spiking=use_spiking)
     xest_after = np.matmul(Dec_after, rOT_after)
+
+    if(use_audio):
+
+        def butter_highpass(cutoff, fs, order=5):
+            nyq = 0.5 * fs
+            normal_cutoff = cutoff / nyq
+            b, a = butter(order, normal_cutoff, btype='high', analog=False)
+            return b, a
+
+        def butter_lowpass_filter(data, cutoff, fs, order=5):
+            b, a = butter_highpass(cutoff, fs, order=order)
+            y = lfilter(b, a, data)
+            return y
+
+        order = 6
+        fs = 1000
+        cutoff = 100
+        b, a = butter_highpass(cutoff, fs, order)
+
+        # Rescale and write to .wav file
+        to_write = 2*xest_after.T / (max(xest_after.T) - min(xest_after.T))
+        to_write += np.mean(to_write)
+        
+        #to_write = 2*(InputT.T  + np.mean(InputT.T))/ (max(InputT.T) - min(InputT.T))
+        #to_write =  ((stereoAudio * bits16max)).astype('int16')
+        to_write_filtered = butter_lowpass_filter(to_write, cutoff, fs, order)
+
+        plt.plot(to_write)
+        plt.plot(to_write_filtered)
+        plt.show()
+
+        print(label)
+        to_write = np.reshape(to_write, (-1,1))
+        write(os.path.join(os.getcwd(), "DYNAPS/Resources/Simulation/recon_audio.wav"), rate = 1000, data=to_write.astype(np.float32))
+    
 
     if(have_discrete):
         (OT_after_disc,_,_) = runnet(utils,utils.dt, utils.lam, F_after, InputT, C_after_disc, utils.Nneuron, TimeT, utils.Thresh,use_spiking=use_spiking)
@@ -411,6 +488,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         name = "reconstruction_us.eps"
     elif(use_batched):
         name = "reconstruction_ub.eps"
+    elif(use_audio):
+        name = "reconstructed_audio.eps"
     else:
         name = "reconstruction.eps"
     plt.savefig(os.path.join(direc, name), format="eps")
@@ -438,6 +517,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         plt.plot(loglog_x, ErrorC_us.reshape((-1,1)), color=color, linewidth=linewidth)
     elif(use_batched):
         plt.plot(loglog_x, ErrorC_ub.reshape((-1,1)), color=color, linewidth=linewidth)
+    elif(use_audio):
+        plt.plot(loglog_x, ErrorC_audio.reshape((-1,1)), color=color, linewidth=linewidth)
     else:
         plt.plot(loglog_x, ErrorC.reshape((-1,1)), color=color, linewidth=linewidth)
 
@@ -462,6 +543,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         plt.plot(loglog_x, Error_us.reshape((-1,1)), color=color, linewidth=linewidth)
     elif(use_batched):
         plt.plot(loglog_x, Error_ub.reshape((-1,1)), color=color, linewidth=linewidth)
+    elif(use_audio):
+        plt.plot(loglog_x, Error_audio.reshape((-1,1)), color=color, linewidth=linewidth)
     else:
         plt.plot(loglog_x, Error.reshape((-1,1)), color=color, linewidth=linewidth)
     plt.xscale('log')
@@ -486,6 +569,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         plt.plot(loglog_x, MeanPrate_us.reshape((-1,1)), color=color, linewidth=linewidth)
     elif(use_batched):
         plt.plot(loglog_x, MeanPrate_ub.reshape((-1,1)), color=color, linewidth=linewidth)
+    elif(use_audio):
+        plt.plot(loglog_x, MeanPrate_audio.reshape((-1,1)), color=color, linewidth=linewidth)
     else:    
         plt.plot(loglog_x, MeanPrate.reshape((-1,1)), color=color, linewidth=linewidth)
     plt.xscale('log')
@@ -509,6 +594,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         plt.plot(loglog_x, MembraneVar_us.reshape((-1,1)), color=color, linewidth=linewidth)
     elif(use_batched):
         plt.plot(loglog_x, MembraneVar_ub.reshape((-1,1)), color=color, linewidth=linewidth)
+    elif(use_audio):
+        plt.plot(loglog_x, MembraneVar_audio.reshape((-1,1)), color=color, linewidth=linewidth)
     else:
         plt.plot(loglog_x, MembraneVar.reshape((-1,1)), color=color, linewidth=linewidth)
     plt.xscale('log')
@@ -533,6 +620,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         name = "convergence_us.eps"
     elif(use_batched):
         name = "convergence_ub.eps"
+    elif(use_audio):
+        name = "convergence_audio.eps"
     else:
         name = "convergence.eps"
     plt.savefig(os.path.join(direc, name), format="eps")

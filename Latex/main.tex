@@ -761,7 +761,46 @@ The final pseudo code is illustrated in the following section.
 
 \subsection{Results}
 
+Algorithm \ref{algorithm_chip_in_the_loop} was run for $\textnormal{N}_{\textnormal{iter}} = 270$ iterations
+with $N = 20$ neurons and $\textnormal{N}_\textnormal{x} = 2$ input signals.
+These signals were converted to $\textnormal{N}_{\textnormal{in}} = 4$ channels, representing the
+spiking input. In the following figures, $\Delta T = \pm 10 \textnormal{ms}$ was used as a time-window.
+To recapitulate, this time-window is used to check, whether the DYNAPS emitted a spike in order
+to do the update of the neuron with the highest voltage above threshold. We assume that due to
+the mismatch, but the general alignment of the DYNAPS and the simulation, the neuron with
+the highest voltage above threshold in the simulation at time $t$ must have
+spiked within a certain $\Delta T$ on the DYNAPS.
+It should be noted that this scheme can be fooled by simply setting the recurrent weights on-chip
+to zero and activating all the neurons, all the time. This way the condition that a spike occurred
+within a given time-window is always satisfied and the algorithm \ref{algorithm_chip_in_the_loop}
+simply becomes a version of the simulation. However, this would render the results useless, as
+the spike train does not sparsify and thus does not produce an (almost) optimal code. \\
+When comparing Figure \ref{fig:DYNAPS_reconstruction} with Figure \ref{fig:reconstruction},
+especially the scale of the reconstruction error, it
+becomes clear that a lot of precision is lost, due to the simulation-DYNAPS mismatch.
+Nevertheless, the results show that this setup successfully learns the optimal recurrent matrix,
+reduces the mean firing rate, reduces the decoding error and balances the network
+(see Figure \ref{fig:DYNAPS_convergence} for convergence behaviour).
 
+
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width = \columnwidth, height=10cm]{figures/placeholder.jpeg}
+  \caption{Please reproduce figure with correct size!}
+  %! Correct caption please
+  \label{fig:DYNAPS_reconstruction}
+\end{figure}
+
+
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width = \columnwidth, height=10cm]{figures/placeholder.jpeg}
+  \caption{Please reproduce figure with correct size!}
+  %! Correct caption please
+  \label{fig:DYNAPS_convergence}
+\end{figure}
+
+\newpage
 
 \section{Discussion}
 

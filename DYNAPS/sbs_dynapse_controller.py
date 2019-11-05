@@ -120,13 +120,13 @@ class SBSController():
 
         O_DYNAPS_sbs[neuron_ids, times] = 1
 
-        if(self.debug):
+        """if(self.debug):
             coordinates = np.nonzero(O_DYNAPS_sbs)
             plt.figure(figsize=(18, 6))
             plt.scatter(coordinates[1], coordinates[0]+1, marker='o', s=0.5, c='k')
             plt.ylim((0,self.num_neurons+1))
             plt.yticks(ticks=np.linspace(0,self.num_neurons,int(self.num_neurons/2)+1))
-            plt.show()
+            plt.show()"""
 
         return O_DYNAPS_sbs
 

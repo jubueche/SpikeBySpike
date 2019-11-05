@@ -8,7 +8,7 @@ import sbs_dynapse_controller
 import sys
 import os
 import numpy as np
-from DYNAPS_Learning import Learning, run_testing
+from DYNAPS_Learning import *
 sys.path.append(os.path.join(os.getcwd(),"../"))
 from Utils import Utils
 from plotting import plot_DYNAPS
@@ -20,11 +20,20 @@ parser.add_argument('-d', help='debug mode on',  action='store_true')
 parser.add_argument('-cc', help='clear the CAMs on the chip',  action='store_true')
 parser.add_argument('-t', help='test on new input', action='store_true')
 parser.add_argument('-p', help='plot previously recorded results', action='store_true')
+parser.add_argument('-b', help='find biases using coordinate-descent-based approach. Arguments: kreuz or vonRossum')
 args = vars(parser.parse_args())
 debug = args['d']
 clear_cam = args['cc']
 testing = args['t']
 plot = args['p']
+metric = args['b']
+allowed_metrics = ['kreuz','vonRossum']
+if(metric is None):
+    find_bias = False
+else:
+    find_bias = True
+    if(not metric in allowed_metrics):
+        raise Exception("Unable to find specified metric. Use -h to see allowed metrics.")
 
 def clean_up_conn(sbs):
     for n in sbs.population:
@@ -67,7 +76,7 @@ for i in range(FtM.shape[1]): # for all columns
     FtM[:,i] = FtM[:,i] / (max(FtM[:,i]) - min(FtM[:,i])) * 2*utils.dynapse_maximal_synapse_ff
 FtM = np.asarray(FtM, dtype=int)
 
-if(not testing and not plot):
+if(not testing and not plot and not find_bias):
 
     try:
         results = Learning(sbs, utils, F, FtM, C_initial)
@@ -93,7 +102,6 @@ if(not testing and not plot):
 elif(testing):
 
     try:
-        # tune_biases(sbs, utils)
         run_testing(sbs, utils)
 
     except Exception:
@@ -110,6 +118,21 @@ elif(testing):
 elif(plot):
     try:
         plot_DYNAPS(utils, resources)
+
+    except Exception:
+        print("Cleaned up conns.")
+        traceback.print_exc()
+        clean_up_conn(sbs)
+    except KeyboardInterrupt:
+        print("Cleaned up conns.")
+        clean_up_conn(sbs)
+    else:
+        print("Cleaned up conns.")
+        clean_up_conn(sbs)
+
+elif(find_bias):
+    try:
+        tune_biases(sbs, utils, metric = metric)
 
     except Exception:
         print("Cleaned up conns.")

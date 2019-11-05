@@ -24,37 +24,58 @@ def compare_population_kreuz(OT_1, OT_2):
     
     return similarities, np.sum(similarities)/(Nneurons*Ntime)
 
+def compare_population_von_rossum(OT_1,OT_2):
+    lam = 50
+    dt = 0.001
+    Nneurons = OT_1.shape[0]
+    Ntime = OT_1.shape[1]
+    if(not Ntime == OT_2.shape[1]):
+        raise AssertionError("Spike trains don't have the same length")
+    R_1 = np.zeros((Nneurons,Ntime))
+    R_2 = np.zeros((Nneurons,Ntime))
+    error = np.zeros(Ntime)
+    for t in range(1,Ntime):
+        R_1[:,t] = (1-lam*dt)*(R_1[:,t-1] + OT_1[:,t])
+        R_2[:,t] = (1-lam*dt)*(R_2[:,t-1] + OT_2[:,t])
+        error[t] = np.sum(np.abs(R_1[:,t]-R_2[:,t])) / Nneurons
+
+    return np.sum(error)/Ntime
+
 
 def tune_biases(sbs, utils, metric = 'kreuz'):
 
-    #! Load recurrent matrix to be used
-    #! Load FF matrix to be used
-    #! Load simulation OT
-    #! Load continous matrix to be used
-    #! Call sbs.bin_omega()
     try:
-        F_disc = np.load("Resources/DYNAPS_F_disc.dat", allow_pickle=True)
-        C_cont = np.load("Resources/DYNAPS_C_cont.dat", allow_pickle=True)
-        OT_sim = np.load("Resources/OT_sim.dat", allow_pickle=True)
-        X = np.load("Resources/xT.dat",allow_pickle=True)
+        F_disc = np.load("Resources/DYNAPS/DYNAPS_F_disc.dat", allow_pickle=True)
+        C_cont = np.load("Resources/DYNAPS/DYNAPS_C_cont.dat", allow_pickle=True)
+        OT_sim = np.load("Resources/DYNAPS/OT_sim.dat", allow_pickle=True)
+        X = np.load("Resources/DYNAPS/bias_xT.dat",allow_pickle=True)
     except:
         print("Error: Failed to load resources.")
         return
 
+    OT_sim = OT_sim[:,0:utils.Ntime]
+    X = X[:,0:utils.Ntime]
+
     # 1) Set F_disc
     sbs.F = np.copy(F_disc)
-    max_C = 0.625
-    min_C = -0.545
+    max_C = 0.4
+    min_C = -0.4
+
+    if(sbs.debug):
+        plt.figure(figsize=(12,5))
+        coordinates = np.nonzero(OT_sim)
+        plt.scatter(coordinates[1], coordinates[0]+1, s=0.5, color='g', marker='o')
+        plt.show()
 
     sbs.bin_omega(C_cont,min_C,max_C)
     sbs.set_recurrent_connection()
 
     num_parameters = 5
-    fine_inh = [200,20,100,50,255]
-    coarse_inh = [5,6,4,-1,-1]
-    delta_mod_ups = [0.01,0.001,0.005,0.05,-1]
-    delta_mod_dwns = [0.001,0.01,0.005,0.05,-1]
-    best = np.inf()
+    fine_inh = [255,200,100,50,20]
+    coarse_inh = [4,5,6,7,-1]
+    delta_mod_ups = [0.05,0.01,0.005,0.001,0.0005]
+    delta_mod_dwns = [0.05,0.01,0.005,0.001,0.0005]
+    best = np.inf
 
     best_fi = fine_inh[0]
     best_ci = coarse_inh[0]
@@ -62,10 +83,13 @@ def tune_biases(sbs, utils, metric = 'kreuz'):
     best_ddwn = delta_mod_dwns[0]
 
     errors = []
+    OT_DYNAPS_initial = np.zeros((utils.Nneuron,utils.Ntime))
+    OT_DYNAPS_best = np.zeros((utils.Nneuron,utils.Ntime))
 
     order = ['ci', 'fi', 'dup', 'ddwn']
+    num_swipes = 1
     T = 4
-    for t in range(T):
+    for t in range(T*num_swipes):
         to_tune = order[t % len(order)]
         print("Tuning %s" % to_tune)
         for i in range(num_parameters):
@@ -95,10 +119,16 @@ def tune_biases(sbs, utils, metric = 'kreuz'):
 
             # 3)
             _,OT_DYNAPS,_ = runnet(sbs,utils,-1,-1,-1,X.shape[1],-1,find_bias=True)
+            if(t == 0 and i == 0):
+                OT_DYNAPS_initial = np.copy(OT_DYNAPS)
 
             if(metric == 'kreuz'):
-                error = kreuz_distance(OT_DYNAPS,OT_sim)
+                _ , error = compare_population_kreuz(OT_DYNAPS,OT_sim)
+            elif(metric == 'vonRossum'):
+                error = compare_population_von_rossum(OT_DYNAPS,OT_sim)
             
+            errors.append(error)
+
             if(error < best):
                 if (to_tune == 'fi'):
                     best_fi = fi
@@ -111,11 +141,92 @@ def tune_biases(sbs, utils, metric = 'kreuz'):
                 else:
                     raise Exception("No element to fine tune")
                 best = error
-                errors.append(error)
-                print("Fi: %d Ci: %d Dup: %.4f Ddwn: %.4f" % (best_fi,best_ci,best_dup,best_ddwn))
+                # errors.append(error)
+                OT_DYNAPS_best = np.copy(OT_DYNAPS)
+
+                if(sbs.debug):
+                    plt.figure(figsize=(12,5))
+                    coordinates = np.nonzero(OT_sim)
+                    plt.scatter(coordinates[1], coordinates[0]+1, s=0.5, color='g', marker='o', label="Simulation")
+                    coordinates = np.nonzero(OT_DYNAPS)
+                    plt.scatter(coordinates[1], coordinates[0]+1, s=0.5, color='r', marker='o', label="DYNAPS")
+                    ax = plt.gca()
+                    ax.set_xticks([],[]); ax.set_yticks([],[])
+                    ax.legend()
+                    plt.show()
+
+                print("Fi: %d Ci: %d Dup: %.4f Ddwn: %.4f Error: %.4f" % (best_fi,best_ci,best_dup,best_ddwn, error))
 
     errors = np.asarray(errors)
-    errors.dump("Resources/%s_errors.dat")
+    errors.dump(("Resources/DYNAPS/%s_errors.dat" % metric))
+
+    ########## Plotting ################
+    if(metric == 'kreuz'):
+        name = 'Kreuz'
+    else:
+        name = "Von Rossum"
+
+    title_font_size = 6
+    axis_font_size = 5
+    ticks_font_size = 5
+    linewidth = 0.5
+
+    color_true = 'C1'
+    color_recon = 'C2'
+    markersize = 0.5 #! Change to 0.00001
+    marker = 'o' #! Change to ,
+
+    try:
+        errors_von_rossum = np.load("Resources/DYNAPS/vonRossum_errors.dat", allow_pickle=True)
+        errors_kreuz = np.load("Resources/DYNAPS/kreuz_errors.dat", allow_pickle=True)
+        if(not len(errors_kreuz) == len(errors_von_rossum)):
+            raise Exception("Error lengths do not match")
+    except:
+        print("Failed to load kreuz and von rossum errors")
+    else:
+        plt.figure(figsize=(6,4))
+        ax = plt.gca()
+        ax2 = ax.twinx()
+        ax.plot(errors_kreuz, color=color_true, linewidth=linewidth)
+        ax.set_xlabel('Iteration', fontname="Times New Roman" ,fontsize=axis_font_size)
+        ax.set_ylabel('Kreuz distance', fontname="Times New Roman" ,fontsize=axis_font_size)
+        ax.tick_params(axis='x', labelsize=ticks_font_size)
+        ax.tick_params(axis='y', labelsize=ticks_font_size, color=color_true)
+        ax2.plot(errors_von_rossum, color=color_recon, linewidth=linewidth)
+        ax2.set_xlabel('Iteration', fontname="Times New Roman" ,fontsize=axis_font_size)
+        ax2.set_ylabel('Von Rossum distance', fontname="Times New Roman" ,fontsize=axis_font_size)
+        ax2.tick_params(axis='x', labelsize=ticks_font_size)
+        ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
+        plt.savefig(("Resources/DYNAPS/%s_coordinate_descent.eps" % metric), format='eps')
+        plt.show()
+
+    plt.figure(figsize=(12,6))
+    plt.subplot(211)
+    plt.title('Alignment using initial biases', fontname="Times New Roman" ,fontsize=title_font_size)
+    ax = plt.gca()
+    coordinates = np.nonzero(OT_sim)
+    ax.scatter(coordinates[1], coordinates[0]+1, s=markersize, color=color_true, marker=marker, label="Simulation")
+    coordinates = np.nonzero(OT_DYNAPS_initial)
+    plt.scatter(coordinates[1], coordinates[0]+1, s=markersize, color=color_recon, marker=marker, label="DYNAPS")
+    ax = plt.gca()
+    ax.set_xticks([],[]); ax.set_yticks([],[])
+    L = ax.legend()
+    plt.setp(L.texts, family='Times New Roman',fontsize=5)
+
+    plt.subplot(212)
+    plt.title('Alignment using best biases', fontname="Times New Roman" ,fontsize=title_font_size)
+    ax = plt.gca()
+    coordinates = np.nonzero(OT_sim)
+    plt.scatter(coordinates[1], coordinates[0]+1, s=markersize, color=color_true, marker=marker)
+    coordinates = np.nonzero(OT_DYNAPS_best)
+    plt.scatter(coordinates[1], coordinates[0]+1, s=markersize, color=color_recon, marker=marker)
+    ax.set_xticks([],[]); ax.set_yticks([],[])
+
+    plt.tight_layout()
+    plt.savefig(("Resources/DYNAPS/%s_bias_pre_and_post_descent.eps" % metric), format='eps')
+    plt.show()
+
+
 
 def Learning(sbs, utils, F, FtM, C, debug = False):
     print("Setting FF...")
@@ -123,9 +234,19 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
     max_C = 0.625
     min_C = -0.545
     
-    # Setting the weights on DYNAPS
+    ########################### Biases producing reasonable learning @270 iterations ##############
     sbs.groups[4].set_bias("PS_WEIGHT_EXC_F_N", 255, 7)
     sbs.groups[4].set_bias("PS_WEIGHT_INH_F_N", 255, 5)
+
+    delta_mod_thresh_up = 0.05 # Use the one in sbs controller
+    delta_mod_thresh_dwn = 0.05
+
+    ########################### Biases from coordinate-descent-approach ###########################
+    """sbs.groups[4].set_bias("PS_WEIGHT_EXC_F_N", 255, 7)
+    sbs.groups[4].set_bias("PS_WEIGHT_INH_F_N", 20, 7)
+
+    delta_mod_thresh_up = 0.0005 # Use the one in sbs controller
+    delta_mod_thresh_dwn = 0.05"""
 
     # Total training time
     TotTime = utils.Nit*utils.Ntime
@@ -135,8 +256,6 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
     Cs_discrete = np.zeros([utils.T, utils.Nneuron, utils.Nneuron])
     C_current_discrete = sbs.bin_omega(C_real=np.copy(C), min=min_C, max=max_C)
 
-    delta_mod_thresh_up = 0.05 # Use the one in sbs controller
-    delta_mod_thresh_dwn = 0.05
     # Save the updates in here
     delta_Omega = np.zeros(C.shape)
     # Keep track of how many times C[:,k] was updated
@@ -333,8 +452,8 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
                 xestc_after = np.copy(xestc)
                 O_DYNAPS_after = OT
 
-            if(sbs.debug):
-                print("Error is %.3f  Absolute weights: %d" % (err, np.sum(np.abs(Cs_discrete[i,:,:]))))           
+            #if(sbs.debug):
+            print("Error is %.3f  Absolute weights: %d" % (err, np.sum(np.abs(Cs_discrete[i,:,:]))))           
             
             Error[0,i] = Error[0,i] + err
             MeanPrate[0,i] = MeanPrate[0,i] + np.sum(OT) / (TimeT*utils.dt*utils.Nneuron*Trials)
@@ -351,6 +470,8 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
         Cnorm = np.sum(CurrC**2)
         ErrorC[0,i] = np.sum(np.sum((CurrC - optscale*Copt)**2 ,axis=0)) / Cnorm
 
+    ending = ("_%s" % str(sbs.parameters["alignment_delta_t"]))
+
     return_dict = {
         "Fi": F,
         "F_dis": FtM,
@@ -362,10 +483,10 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
         "Cs": Cs,
         "Cs_discrete": Cs_discrete,
         "Decs": Decs,
-        "DYNAPS_Error": Error,
-        "DYNAPS_MeanPrate": MeanPrate,
-        "DYNAPS_MembraneVar": MembraneVar,
-        "DYNAPS_ErrorC": ErrorC,
+        ("DYNAPS_Error%s" % ending): Error,
+        ("DYNAPS_MeanPrate%s" % ending): MeanPrate,
+        ("DYNAPS_MembraneVar%s" % ending): MembraneVar,
+        ("DYNAPS_ErrorC%s" % ending): ErrorC,
         "w": w,
         "DYNAPS_xestc_initial": xestc_initial,
         "DYNAPS_xestc_after": xestc_after,

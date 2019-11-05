@@ -12,3 +12,5 @@ Data
 .vscode
 venv
 DYNAPS/Resources
+free-spoken-digit-dataset/recordings
+free-spoken-digit-dataset/spectrograms
