@@ -16,5 +16,5 @@
     "A" : 2000,
     "dynapse_maximal_synapse_ff": 8,
     "dynapse_maximal_synapse_o": 2,
-    "alignment_delta_t": 5
+    "alignment_delta_t": 10
 }

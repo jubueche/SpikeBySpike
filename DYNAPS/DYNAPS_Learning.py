@@ -4,9 +4,6 @@ from DYNAPS_runnet import runnet, my_max
 from progress.bar import ChargingBar
 from metrics.kreuz import distance as kreuz_distance
 
-# TODO - Write code for coordinate-descent, 
-# TODO - Use different signal on-chip than off-chip and (hopefully) show that reconstruction does not work
-
 
 def compare_population_kreuz(OT_1, OT_2):
     Nneurons = OT_1.shape[0]
@@ -231,8 +228,8 @@ def tune_biases(sbs, utils, metric = 'kreuz'):
 def Learning(sbs, utils, F, FtM, C, debug = False):
     print("Setting FF...")
     sbs.F = np.copy(FtM)
-    max_C = 0.625
-    min_C = -0.545
+    max_C = 0.5
+    min_C = -0.5
     
     ########################### Biases producing reasonable learning @270 iterations ##############
     sbs.groups[4].set_bias("PS_WEIGHT_EXC_F_N", 255, 7)

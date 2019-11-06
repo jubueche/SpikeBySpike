@@ -17,4 +17,4 @@
 \contentsline {subsubsection}{\numberline {4.2.4}Further alignment using time-window update}{17}{subsubsection.4.2.4}% 
 \contentsline {subsubsection}{\numberline {4.2.5}Final pseudo code}{18}{subsubsection.4.2.5}% 
 \contentsline {subsection}{\numberline {4.3}Results}{19}{subsection.4.3}% 
-\contentsline {section}{\numberline {5}Discussion}{20}{section.5}% 
+\contentsline {section}{\numberline {5}Discussion}{21}{section.5}% 

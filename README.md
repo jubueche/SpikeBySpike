@@ -10,11 +10,9 @@
 
 4) Download all necessary packages using ```$ pip3 install -r requirements.txt```
 
-5) (Without Sumatra) Start the main program using ```$ python3 main.py Data parameters.param```
-This will run the learning process and store important files in a local ```Resources``` folder. You can then open ```main.py``` and change ```TRAINING``` to ```False``` and execute the script again. This will produce plots for testing.
+5) Simulation: Execute ```$ python main.py -h``` to see the command line options.
 
-6) (With Sumatra) Sumatra makes a new commit to the repository. If you are not authorized to commit to this repository, please fork this repository. Execute ```$ smt init SpikeBySpike```.
+6) DYNAPS: Navigate to the DYANAPS subdirectory and execute ```python main.py -h``` to see available commands.
 
-7) Execute ```$ smt configure --executable=python3 --main=main.py```
-
-8) After the ```.smt``` folder was created you can start an experiment by executing ```python3 Start.py parameters.param```.
+Note: In order to run the DYNAPS in the loop, plugin in the DYNAPS, start cortexcontrol and start the
+rpyc server in headless mode.

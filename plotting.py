@@ -40,7 +40,7 @@ def plot_DYNAPS(utils, direc):
 
     title_font_size = 6
     axis_font_size = 5
-    ticks_font_size = 5
+    ticks_font_size = 4
     linewidth = 0.5
 
     color = 'C1'
@@ -96,7 +96,7 @@ def plot_DYNAPS(utils, direc):
     plt.savefig(os.path.join(direc, name), format="eps")
     plt.show()
 
-
+    use_both = False
     #################################################################################
 
     T = utils.T
@@ -109,13 +109,17 @@ def plot_DYNAPS(utils, direc):
     plt.subplot(411)
     ax = plt.gca()
 
-    l1 = ax.plot(loglog_x, ErrorC5.reshape((-1,1)), color=color_true, linewidth=linewidth, label="Time-window size 5ms")
-    ax2 = ax.twinx()
-    l2 = ax2.plot(loglog_x, ErrorC10.reshape((-1,1)), color=color_recon, linewidth=linewidth, label="Time-window size 10ms")
-    lns = l1+l2
+    l1 = ax.plot(loglog_x, ErrorC10.reshape((-1,1)), color=color_true, linewidth=linewidth, label="Time-window size 5ms")
+    if(use_both):
+        ax2 = ax.twinx()
+        l2 = ax2.plot(loglog_x, ErrorC5.reshape((-1,1)), color=color_recon, linewidth=linewidth, label="Time-window size 10ms")
+        lns = l1+l2
+    else:
+        lns = l1
     labs = [l.get_label() for l in lns]
-    L = ax.legend(lns, labs, loc=0, frameon=False, ncol=1, labelspacing=0.1)
-    plt.setp(L.texts, family='Times New Roman',fontsize=5)
+    #L = ax.legend(lns, labs, loc=0, frameon=False, ncol=1)
+    #L = ax.legend(frameon=False)
+    #plt.setp(L.texts, family='Times New Roman',fontsize=5)
 
     plt.xscale('log')
     plt.xlabel('Time', fontname="Times New Roman" ,fontsize=axis_font_size)
@@ -123,13 +127,15 @@ def plot_DYNAPS(utils, direc):
     plt.title('Weight Convergence', fontname="Times New Roman" ,fontsize=title_font_size)
     ax.tick_params(axis='y', labelsize=ticks_font_size, color=color_true)
     ax.tick_params(axis='x', labelsize=ticks_font_size)
-    ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
+    if(use_both):
+        ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
 
     plt.subplot(412)
     ax = plt.gca()
-    ax.plot(loglog_x, Error5.reshape((-1,1)), color=color_true, linewidth=linewidth)
-    ax2 = ax.twinx()
-    ax2.plot(loglog_x, Error10.reshape((-1,1)), color=color_recon, linewidth=linewidth)
+    ax.plot(loglog_x, Error10.reshape((-1,1)), color=color_true, linewidth=linewidth)
+    if(use_both):
+        ax2 = ax.twinx()
+        ax2.plot(loglog_x, Error5.reshape((-1,1)), color=color_recon, linewidth=linewidth)
 
     plt.xscale('log')
     plt.ylabel('log')
@@ -138,13 +144,15 @@ def plot_DYNAPS(utils, direc):
     plt.title('Evolution of the Decoding Error Through Learning', fontname="Times New Roman" ,fontsize=title_font_size)
     ax.tick_params(axis='y', labelsize=ticks_font_size, color=color_true)
     ax.tick_params(axis='x', labelsize=ticks_font_size)
-    ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
+    if(use_both):
+        ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
 
     plt.subplot(413)
     ax = plt.gca()
-    ax.plot(loglog_x, MeanPrate5.reshape((-1,1)), color=color_true, linewidth=linewidth)
-    ax2 = ax.twinx()
-    ax2.plot(loglog_x, MeanPrate10.reshape((-1,1)), color=color_recon, linewidth=linewidth)
+    ax.plot(loglog_x, MeanPrate10.reshape((-1,1)), color=color_true, linewidth=linewidth)
+    if(use_both):
+        ax2 = ax.twinx()
+        ax2.plot(loglog_x, MeanPrate5.reshape((-1,1)), color=color_recon, linewidth=linewidth)
 
 
     plt.xscale('log')
@@ -153,13 +161,15 @@ def plot_DYNAPS(utils, direc):
     plt.title('Evolution of the Mean Population Firing Rate Through Learning', fontname="Times New Roman" ,fontsize=title_font_size)
     ax.tick_params(axis='y', labelsize=ticks_font_size, color=color_true)
     ax.tick_params(axis='x', labelsize=ticks_font_size)
-    ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
+    if(use_both):
+        ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
 
     plt.subplot(414)
     ax = plt.gca()
-    ax.plot(loglog_x, MembraneVar5.reshape((-1,1)), color=color_true, linewidth=linewidth)
-    ax2 = ax.twinx()
-    ax2.plot(loglog_x, MembraneVar10.reshape((-1,1)), color=color_recon, linewidth=linewidth)
+    ax.plot(loglog_x, MembraneVar10.reshape((-1,1)), color=color_true, linewidth=linewidth)
+    if(use_both):
+        ax2 = ax.twinx()
+        ax2.plot(loglog_x, MembraneVar5.reshape((-1,1)), color=color_recon, linewidth=linewidth)
     plt.xscale('log')
     plt.ylabel('log')
     plt.xlabel('Time', fontname="Times New Roman" ,fontsize=axis_font_size)
@@ -167,7 +177,8 @@ def plot_DYNAPS(utils, direc):
     plt.title('Evolution of the Variance of the Membrane Potential', fontname="Times New Roman" ,fontsize=title_font_size)
     ax.tick_params(axis='y', labelsize=ticks_font_size, color=color_true)
     ax.tick_params(axis='x', labelsize=ticks_font_size)
-    ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
+    if(use_both):
+        ax2.tick_params(axis='y', labelsize=ticks_font_size, color=color_recon)
 
     plt.tight_layout()
     name = "DYNAPS_convergence.eps"
@@ -379,11 +390,9 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         b, a = butter_highpass(cutoff, fs, order)
 
         # Rescale and write to .wav file
-        to_write = 2*xest_after.T / (max(xest_after.T) - min(xest_after.T))
-        to_write += np.mean(to_write)
+        to_write = 1.0*2*(xest_after.T + np.mean(xest_after.T)) / (max(xest_after.T) - min(xest_after.T))
         
         #to_write = 2*(InputT.T  + np.mean(InputT.T))/ (max(InputT.T) - min(InputT.T))
-        #to_write =  ((stereoAudio * bits16max)).astype('int16')
         to_write_filtered = butter_lowpass_filter(to_write, cutoff, fs, order)
 
         plt.plot(to_write)

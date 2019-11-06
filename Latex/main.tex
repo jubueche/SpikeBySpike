@@ -775,6 +775,19 @@ to zero and activating all the neurons, all the time. This way the condition tha
 within a given time-window is always satisfied and the algorithm \ref{algorithm_chip_in_the_loop}
 simply becomes a version of the simulation. However, this would render the results useless, as
 the spike train does not sparsify and thus does not produce an (almost) optimal code. \\
+
+
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width = \columnwidth, height=10cm]{figures/DYNAPS_reconstruction.eps}
+  \caption{While reducing the reconstruction error, the spike train sparsifies.
+  In fact, for this experiment 880 spikes were saved over a period of 1 second, which is more
+  than 3 million in one hour. Assuming that a neuron consumes
+  $2.468 \cdot 10^ J$, we saved $0.781 J$, only for 20 neurons.}
+  %! Correct caption please
+  \label{fig:DYNAPS_reconstruction}
+\end{figure}
+
 When comparing Figure \ref{fig:DYNAPS_reconstruction} with Figure \ref{fig:reconstruction},
 especially the scale of the reconstruction error, it
 becomes clear that a lot of precision is lost, due to the simulation-DYNAPS mismatch.
@@ -782,19 +795,9 @@ Nevertheless, the results show that this setup successfully learns the optimal r
 reduces the mean firing rate, reduces the decoding error and balances the network
 (see Figure \ref{fig:DYNAPS_convergence} for convergence behaviour).
 
-
 \begin{figure}[!htb]
   \centering
-  \includegraphics[width = \columnwidth, height=10cm]{figures/placeholder.jpeg}
-  \caption{Please reproduce figure with correct size!}
-  %! Correct caption please
-  \label{fig:DYNAPS_reconstruction}
-\end{figure}
-
-
-\begin{figure}[!htb]
-  \centering
-  \includegraphics[width = \columnwidth, height=10cm]{figures/placeholder.jpeg}
+  \includegraphics[width = \columnwidth, height=10cm]{figures/DYNAPS_convergence.eps}
   \caption{Please reproduce figure with correct size!}
   %! Correct caption please
   \label{fig:DYNAPS_convergence}

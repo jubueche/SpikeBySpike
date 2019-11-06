@@ -297,7 +297,7 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
     if(not use_audio):
         TimeL = 50000
     else:
-        TimeL = 500
+        TimeL = utils.Ntime
 
     xL = np.zeros((utils.Nx, TimeL))
     Decs = np.zeros([utils.T, utils.Nx, utils.Nneuron])
@@ -325,7 +325,7 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
     if(not use_audio):
         TimeT = 10000
     else:
-        TimeT = 500
+        TimeT = utils.Ntime
 
     MeanPrate = np.zeros((1,utils.T))
     Error = np.zeros((1,utils.T))
@@ -376,8 +376,8 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
             os.mkdir(data_directory)
 
         xT = np.zeros((utils.Nx, utils.Ntime))
-        Data_training = np.zeros([audio_helper.train_number,utils.Nneuron, utils.Ntime])
-        Data_testing = np.zeros([audio_helper.test_number,utils.Nneuron, utils.Ntime])
+        Data_training = np.zeros([audio_helper.train_number,utils.Nx, utils.Ntime])
+        Data_testing = np.zeros([audio_helper.test_number,utils.Nx, utils.Ntime])
         label_training = np.zeros(audio_helper.train_number)
         label_testing = np.zeros(audio_helper.test_number)
         c_training = 0; c_testing = 0
@@ -389,7 +389,8 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
                     xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*Input[:,t-1]
 
                 (rOT, OT, _) = runnet(utils,utils.dt, utils.lam, F, Input, C, utils.Nneuron, utils.Ntime, utils.Thresh,use_spiking=use_spiking)
-                Data_training[c_training,:,:] = OT
+                xest = np.matmul(Dec, rOT)
+                Data_training[c_training,:,:] = xest
                 #Data_training[c_training,:,:] = rOT
                 label_training[c_training] = label
                 c_training += 1
@@ -401,8 +402,8 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
                     xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*Input[:,t-1]
 
                 (rOT, OT, _) = runnet(utils,utils.dt, utils.lam, F, Input, C, utils.Nneuron, utils.Ntime, utils.Thresh,use_spiking=use_spiking)
-                Data_testing[c_testing,:,:] = OT
-                #Data_testing[c_testing,:,:] = rOT
+                xest = np.matmul(Dec, rOT)
+                Data_testing[c_testing,:,:] = xest
                 label_testing[c_testing] = label
                 c_testing += 1
 
