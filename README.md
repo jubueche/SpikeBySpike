@@ -12,7 +12,7 @@
 
 5) Simulation: Execute ```$ python main.py -h``` to see the command line options.
 
-6) DYNAPS: Navigate to the DYANAPS subdirectory and execute ```python main.py -h``` to see available commands.
+6) DYNAPS: Navigate to the DYNAPS subdirectory and execute ```python main.py -h``` to see available commands.
 
 Note: In order to run the DYNAPS in the loop, plugin in the DYNAPS, start cortexcontrol and start the
 rpyc server in headless mode.
