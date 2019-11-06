@@ -1,5 +1,5 @@
 cycler==0.10.0
-Django==1.8
+Django==1.11.23
 django-tagging==0.4.6
 docutils==0.15.2
 future==0.17.1
