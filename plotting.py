@@ -189,11 +189,13 @@ def plot_DYNAPS(utils, direc):
 
 def plot_from_resources(resources_direc, utils, direc, update_all = False, discretize = False,
                             remove_positive = False, use_spiking=False, use_batched=False,use_batched_nn=False,
-                            use_audio=False, audio_helper = None):
+                            use_audio=False, audio_helper = None, use_reinforcement=False):
 
     if(use_audio and audio_helper is None):
         raise Exception("Audio helper is None")
 
+    if(use_reinforcement):
+        assert(not use_audio and not use_batched and not use_batched_nn and not use_spiking), "Error, using other feature"
     # Generate new input signal
     if(discretize):
         ending = "_d.dat"
@@ -207,6 +209,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         ending = "_ub.dat"
     elif(use_audio):
         ending = "_audio.dat"
+    elif(use_reinforcement):
+        ending = "_reinforce.dat"
     else:
         ending = ".dat"
     
@@ -232,6 +236,7 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
     have_ub = True
     have_ub_nn = True
     have_audio = True
+    have_reinforce = True
 
     title_font_size = 6
     axis_font_size = 5
@@ -321,6 +326,14 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         print("No use batched update not normalized data")
         have_audio = False
    
+    try:
+        MembraneVar_reinforce = np.load(os.path.join(resources_direc, "MembraneVar_reinforce.dat"), allow_pickle=True)
+        MeanPrate_reinforce = np.load(os.path.join(resources_direc, "MeanPrate_reinforce.dat"), allow_pickle=True)
+        ErrorC_reinforce = np.load(os.path.join(resources_direc, "ErrorC_reinforce.dat"), allow_pickle=True)
+        Error_reinforce = np.load(os.path.join(resources_direc, "Error_reinforce.dat"), allow_pickle=True)
+    except:
+        print("No use reinforcement learning data")
+        have_reinforce = False
 
     # Load kernel
     w = np.load(os.path.join(resources_direc, ("w%s" % ending)), allow_pickle=True)
@@ -395,9 +408,9 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         #to_write = 2*(InputT.T  + np.mean(InputT.T))/ (max(InputT.T) - min(InputT.T))
         to_write_filtered = butter_lowpass_filter(to_write, cutoff, fs, order)
 
-        plt.plot(to_write)
+        """plt.plot(to_write)
         plt.plot(to_write_filtered)
-        plt.show()
+        plt.show()"""
 
         print(label)
         to_write = np.reshape(to_write, (-1,1))
@@ -528,6 +541,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         plt.plot(loglog_x, ErrorC_ub.reshape((-1,1)), color=color, linewidth=linewidth)
     elif(use_audio):
         plt.plot(loglog_x, ErrorC_audio.reshape((-1,1)), color=color, linewidth=linewidth)
+    elif(use_reinforcement):
+        plt.plot(loglog_x, ErrorC_reinforce.reshape((-1,1)), color=color, linewidth=linewidth)
     else:
         plt.plot(loglog_x, ErrorC.reshape((-1,1)), color=color, linewidth=linewidth)
 
@@ -554,6 +569,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         plt.plot(loglog_x, Error_ub.reshape((-1,1)), color=color, linewidth=linewidth)
     elif(use_audio):
         plt.plot(loglog_x, Error_audio.reshape((-1,1)), color=color, linewidth=linewidth)
+    elif(use_reinforcement):
+        plt.plot(loglog_x, Error_reinforce.reshape((-1,1)), color=color, linewidth=linewidth)
     else:
         plt.plot(loglog_x, Error.reshape((-1,1)), color=color, linewidth=linewidth)
     plt.xscale('log')
@@ -580,7 +597,9 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         plt.plot(loglog_x, MeanPrate_ub.reshape((-1,1)), color=color, linewidth=linewidth)
     elif(use_audio):
         plt.plot(loglog_x, MeanPrate_audio.reshape((-1,1)), color=color, linewidth=linewidth)
-    else:    
+    elif(use_reinforcement):
+        plt.plot(loglog_x, MeanPrate_reinforce.reshape((-1,1)), color=color, linewidth=linewidth)
+    else:  
         plt.plot(loglog_x, MeanPrate.reshape((-1,1)), color=color, linewidth=linewidth)
     plt.xscale('log')
     plt.xlabel('Time', fontname="Times New Roman" ,fontsize=axis_font_size)
@@ -605,6 +624,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         plt.plot(loglog_x, MembraneVar_ub.reshape((-1,1)), color=color, linewidth=linewidth)
     elif(use_audio):
         plt.plot(loglog_x, MembraneVar_audio.reshape((-1,1)), color=color, linewidth=linewidth)
+    elif(use_reinforcement):
+        plt.plot(loglog_x, MembraneVar_reinforce.reshape((-1,1)), color=color, linewidth=linewidth)
     else:
         plt.plot(loglog_x, MembraneVar.reshape((-1,1)), color=color, linewidth=linewidth)
     plt.xscale('log')
@@ -631,6 +652,8 @@ def plot_from_resources(resources_direc, utils, direc, update_all = False, discr
         name = "convergence_ub.eps"
     elif(use_audio):
         name = "convergence_audio.eps"
+    elif(use_reinforcement):
+        name = "convergence_reinforce.eps"
     else:
         name = "convergence.eps"
     plt.savefig(os.path.join(direc, name), format="eps")

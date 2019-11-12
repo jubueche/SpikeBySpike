@@ -114,13 +114,87 @@ def get_input(duration, utils, w, audio_helper = None, use_audio = False, traini
         return label, Input
 
 
+def get_reward(utils, C, F, w, use_audio = False, use_spiking = False, audio_helper = None):
+
+    # Generate input and integrate
+    if(not use_audio):
+        TimeL = 1000
+    else:
+        TimeL = utils.Ntime
+
+    xL = np.zeros((utils.Nx, TimeL))
+
+    # Generate new input
+    if(use_audio):
+        label, InputL = get_input(TimeL, utils, w, audio_helper=audio_helper, use_audio = use_audio,training=True)
+    else:
+        InputL = get_input(TimeL, utils, w, audio_helper=audio_helper, use_audio = use_audio,training=True)
+
+    # Compute the target output by a leaky integration of the input
+    for t in range(1,TimeL):
+        xL[:,t] = (1-utils.lam*utils.dt)*xL[:,t-1] + utils.dt*InputL[:,t-1]
+
+    # Obtain Decoder for current recurrent matrix
+    (rOL,_,_) = runnet(utils,utils.dt, utils.lam, F, InputL, C, utils.Nneuron, TimeL, utils.Thresh, use_spiking=use_spiking)
+    Dec = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T
+
+    # Now test on new input using Dec
+    if(not use_audio):
+        TimeT = 10000
+    else:
+        TimeT = utils.Ntime
+
+    Error = 0
+    MeanPrate = 0
+    xT = np.zeros((utils.Nx, TimeT))
+
+    Trials = 5
+
+    for r in range(Trials):
+
+        if(use_audio):
+            label, InputT = get_input(TimeT, utils, w, audio_helper=audio_helper, use_audio=use_audio,training=False)
+        else:
+            InputT = get_input(TimeT, utils, w, audio_helper=audio_helper, use_audio=use_audio,training=False)
+
+        # Compute the target output by leaky integration of InputT
+        for t in range(1,TimeT):
+            xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*InputT[:,t-1]
+
+        (rOT, OT, VT) = runnet(utils,utils.dt, utils.lam, F, InputT, C, utils.Nneuron, TimeT, utils.Thresh,use_spiking=use_spiking)
+        xestc = np.matmul(Dec, rOT) # Decode the rate vector
+        Error = Error + np.sum(np.var(xT-xestc, axis=1, ddof=1)) / (np.sum(np.var(xT, axis=1, ddof=1))*Trials)
+        MeanPrate = MeanPrate + np.sum(OT) / (TimeT*utils.dt*utils.Nneuron*Trials) 
+    print("Mean firing rate: %.3f" % MeanPrate)  
+    return Error, MeanPrate
+
+def update_lookback(lookback, new_val):
+    lookback_return = np.zeros(len(lookback))
+    lookback_return[1:] = lookback[0:len(lookback)-1]
+    lookback_return[0] = new_val
+    return lookback_return
+
+def look_back_reward(lookback):
+    lam = 1
+    reward = 0
+    s = 0
+    for i in range(len(lookback)):
+        reward += lookback[i]*lam**(-i)
+        s += lam**(-i)
+    return reward / s
 
 def Learning(utils, F, C, update_all = False, discretize_weights = False, number_of_bins = 100,
-            remove_positive = False, use_spiking = False, use_batched=False, use_batched_nn=False, use_audio=False, audio_helper = None):
+            remove_positive = False, use_spiking = False, use_batched=False, use_batched_nn=False,
+            use_audio=False, audio_helper = None, use_reinforcement = False):
 
     if(use_audio and audio_helper is None):
         raise Exception("Audio helper is None")
 
+    initial_reward = 0
+    look_back_length = 5
+    reward_lookback = np.zeros(look_back_length) # First element is most recent and has highest weight.
+    scaled_rewards = []
+    alpha = utils.epsr
     TotTime = utils.Nit*utils.Ntime
 
     Fi = np.copy(F)
@@ -284,7 +358,22 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
 
         if(remove_positive):
             assert (C <= 0).all(), "Positive values in C encountered"
-
+        
+        if(use_reinforcement and (((i-2) % 250) == 0)):
+            reward, MeanPrate = get_reward(utils, C, F, w, use_audio, use_spiking, audio_helper)
+            reward_lookback = update_lookback(reward_lookback, reward)
+            reward = look_back_reward(reward_lookback)
+            if(i < look_back_length*250): # Burn in phase
+                initial_reward = reward # Use initial reward as a reference for further rewards
+                print("Initial reward is %.4f" % initial_reward)
+            else:
+                scaled_reward = reward / initial_reward
+                if(scaled_reward < 1.0):
+                    scaled_reward = scaled_reward**10
+                corrected = alpha * scaled_reward
+                print("Reward is %.3f Scaled reward is %.3f EpsR_prior is %.5f Corrected_Eps_R is %.5f" % (reward, scaled_reward, utils.epsr, corrected))
+                utils.epsr = corrected
+                scaled_rewards.append(reward)
 
         r0 = r0 + ot
         
@@ -292,6 +381,22 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
         bar.next()
     bar.next()
     bar.finish()
+    scaled_rewards = np.asarray(scaled_rewards)
+    scaled_rewards.dump("scaled_rewards_reinforcement.dat")
+
+    try:
+        srreinf = np.load("scaled_rewards_reinforcement.dat", allow_pickle=True)
+        srno_reinf = np.load("scaled_rewards.dat", allow_pickle=True)
+        if(not len(srreinf) == len(srno_reinf)):
+            raise Exception("Bad lengths")
+    except:
+        print("Not all data available")
+    else:
+        plt.plot(srreinf, label="Reinforcement")
+        plt.plot(srno_reinf, label="No reinforcement")
+        ax = plt.gca()
+        ax.legend()
+        plt.show()
         
     ########## Compute the optimal decoder ##########
     if(not use_audio):

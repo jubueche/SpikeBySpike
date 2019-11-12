@@ -20,6 +20,7 @@ parser.add_argument('-spiking', help='use spiking input', action='store_true')
 parser.add_argument('-bnn', help='Use batched updates without normalizing', action='store_true')
 parser.add_argument('-b', help='Use batched updates', action='store_true')
 parser.add_argument('-audio', help='Use spoken MNIST as input', action='store_true')
+parser.add_argument('-reinforce', help='Use Reinforcement learning based step size adaptation', action='store_true')
 
 args = vars(parser.parse_args())
 testing = args['t']
@@ -30,6 +31,7 @@ use_spiking = args['spiking']
 use_batched = args['b']
 use_batched_nn = args['bnn']
 use_audio = args['audio']
+use_reinforcement = args['reinforce']
 
 # Audio helper object
 audio_helper = AudioHelper()
@@ -87,7 +89,8 @@ if(not testing):
     results = Learning(utils, F_initial, C_initial, update_all=update_all,
                     discretize_weights=discretize, remove_positive=remove_positive,
                     use_spiking=use_spiking, use_batched=use_batched,
-                    use_batched_nn=use_batched_nn, use_audio=use_audio, audio_helper=audio_helper)
+                    use_batched_nn=use_batched_nn, use_audio=use_audio, audio_helper=audio_helper,
+                    use_reinforcement=use_reinforcement)
 
     results["C_after"].dump(os.path.join(os.getcwd(), "DYNAPS/Resources/DYNAPS/DYNAPS_C_cont.dat"))
     results["xT"].dump(os.path.join(os.getcwd(), "DYNAPS/Resources/DYNAPS/bias_xT.dat"))
@@ -108,6 +111,8 @@ if(not testing):
             name = key + "_ub.dat"
         elif(use_audio):
             name = key + "_audio.dat"
+        elif(use_reinforcement):
+            name = key + "_reinforce.dat"
         else:
             name = key + ".dat"
         results[key].dump(os.path.join(resources, name))
@@ -118,4 +123,4 @@ if(not testing):
 plot_from_resources(resources, utils, direc, update_all=update_all,
                     discretize=discretize, remove_positive=remove_positive,
                     use_spiking=use_spiking,use_batched=use_batched,use_batched_nn=use_batched_nn,
-                    use_audio=use_audio, audio_helper=audio_helper)
+                    use_audio=use_audio, audio_helper=audio_helper, use_reinforcement=use_reinforcement)
