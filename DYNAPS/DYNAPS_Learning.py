@@ -224,8 +224,82 @@ def tune_biases(sbs, utils, metric = 'kreuz'):
     plt.show()
 
 
+def get_input(duration, utils, w):
 
-def Learning(sbs, utils, F, FtM, C, debug = False):
+    Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), duration)).T
+    Input[:,0:100] = 0
+    for d in range(utils.Nx):
+        Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
+
+    return Input
+
+#runnet(sbs, utils, F, Cs_discrete[i,:,:], Cs[i,:,:], TimeL, xL)
+def get_reward(sbs,utils, C, C_disc, F, w):
+
+    # Generate input and integrate
+    TimeL = utils.Ntime
+    xL = np.zeros((utils.Nx, TimeL))
+    InputL = get_input(TimeL, utils, w)
+
+    # Compute the target output by a leaky integration of the input
+    for t in range(1,TimeL):
+        xL[:,t] = (1-utils.lam*utils.dt)*xL[:,t-1] + utils.dt*InputL[:,t-1]
+
+    # Obtain Decoder for current recurrent matrix
+    (rOL,_,_) = runnet(sbs,utils,F,C_disc,C,TimeL,xL)
+    Dec = np.linalg.lstsq(rOL.T, xL.T, rcond=None)[0].T
+
+    # Now test on new input using Dec
+    TimeT = 1000
+    
+    Error = 0
+    MeanPrate = 0
+    xT = np.zeros((utils.Nx, TimeT))
+
+    weights_used = np.sum(C_disc)
+
+    Trials = 5
+
+    for r in range(Trials):
+
+        InputT = get_input(TimeT, utils, w)
+
+        # Compute the target output by leaky integration of InputT
+        for t in range(1,TimeT):
+            xT[:,t] = (1-utils.lam*utils.dt)*xT[:,t-1] + utils.dt*InputT[:,t-1]
+
+        (rOT, OT, VT) = runnet(sbs,utils,F,C_disc,C,TimeT,xT)
+        xestc = np.matmul(Dec, rOT) # Decode the rate vector
+        Error = Error + np.sum(np.var(xT-xestc, axis=1, ddof=1)) / (np.sum(np.var(xT, axis=1, ddof=1))*Trials)
+        MeanPrate = MeanPrate + np.sum(OT) / (TimeT*utils.dt*utils.Nneuron*Trials) 
+    print("Mean firing rate: %.3f Weights used %d" % (MeanPrate, weights_used))  
+    return Error, MeanPrate
+
+def update_lookback(lookback, new_val):
+    lookback_return = np.zeros(len(lookback))
+    lookback_return[1:] = lookback[0:len(lookback)-1]
+    lookback_return[0] = new_val
+    return lookback_return
+
+def look_back_reward(lookback):
+    lam = 1
+    reward = 0
+    s = 0
+    for i in range(len(lookback)):
+        reward += lookback[i]*lam**(-i)
+        s += lam**(-i)
+    return reward / s
+
+
+def Learning(sbs, utils, F, FtM, C, debug = False, use_reinforcement = False):
+
+    # Reinforcement learning parameters
+    initial_reward = 0
+    look_back_length = 5
+    reward_lookback = np.zeros(look_back_length) # First element is most recent and has highest weight.
+    scaled_rewards = []
+    alpha = utils.epsr
+
     print("Setting FF...")
     sbs.F = np.copy(FtM)
     max_C = 0.5
@@ -281,6 +355,7 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
     spike_alignment_distribution = []
 
     j = 1
+    num_update = 0
 
     bar = ChargingBar('Learning', max=TotTime-1)
     for i in range(2, TotTime):
@@ -302,6 +377,7 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
            and accumulate delta Omega.
         """
         if(((i-2) % utils.Ntime) == 0):
+            num_update += 1
             Input = (np.random.multivariate_normal(np.zeros(utils.Nx), np.eye(utils.Nx), utils.Ntime)).T
             for d in range(utils.Nx):
                 Input[d,:] = utils.A*np.convolve(Input[d,:], w, 'same')
@@ -339,7 +415,7 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
                 current_thresh = utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)
                 
                 # new_V_recon = 0.1*V_recons[:,t-1] + np.matmul(F.T, X[:,t]) + np.matmul(C, R[:,t-1]) + 0.001*np.random.randn(utils.Nneuron, 1).ravel()
-                new_V_recon = np.matmul(F.T, X[:,t]) + np.matmul(C, R[:,t-1]) + 0.001*np.random.randn(utils.Nneuron, 1).ravel()
+                new_V_recon = np.matmul(F.T, X[:,t]) + np.matmul(C, R[:,t-1])
 
                 (m, k) = my_max(new_V_recon.reshape((-1,1)) - current_thresh) # Returns maximum and argmax
                 has_spike = np.sum(O_DYNAPS[k,max(0,t-utils.alignment_delta_t):min(utils.Ntime-1,t+utils.alignment_delta_t)]) > 0
@@ -353,6 +429,23 @@ def Learning(sbs, utils, F, FtM, C, debug = False):
 
                 V_recons[:,t] = new_V_recon
                 R[:,t] = (1-utils.lam*utils.dt)*r_tmp
+
+            # 9)
+            if(use_reinforcement):
+                reward, MeanPrate = get_reward(sbs, utils, C, C_current_discrete, F, w)
+                reward_lookback = update_lookback(reward_lookback, reward)
+                reward = look_back_reward(reward_lookback)
+                if(num_update <= look_back_length): # Burn in phase
+                    initial_reward = reward # Use initial reward as a reference for further rewards
+                    print("Initial reward is %.4f" % initial_reward)
+                else:
+                    scaled_reward = reward / initial_reward
+                    if(scaled_reward < 1.0):
+                        scaled_reward = scaled_reward**10
+                    corrected = alpha * scaled_reward
+                    print("Reward is %.3f Scaled reward is %.3f EpsR_prior is %.5f Corrected_Eps_R is %.5f" % (reward, scaled_reward, utils.epsr, corrected))
+                    utils.epsr = corrected
+                    scaled_rewards.append(reward)
 
             """if(sbs.debug):
                 variance = np.sum(np.var(V_recons, axis=1, ddof=1)) / (utils.Nneuron)

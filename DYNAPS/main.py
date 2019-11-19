@@ -21,6 +21,8 @@ parser.add_argument('-cc', help='clear the CAMs on the chip',  action='store_tru
 parser.add_argument('-t', help='test on new input', action='store_true')
 parser.add_argument('-p', help='plot previously recorded results', action='store_true')
 parser.add_argument('-b', help='find biases using coordinate-descent-based approach. Arguments: kreuz or vonRossum')
+parser.add_argument('-reinforce', help='Use reinforcement based adaptive learning rate', action='store_true')
+
 args = vars(parser.parse_args())
 debug = args['d']
 clear_cam = args['cc']
@@ -34,6 +36,8 @@ else:
     find_bias = True
     if(not metric in allowed_metrics):
         raise Exception("Unable to find specified metric. Use -h to see allowed metrics.")
+use_reinforcement = args['reinforce']
+
 
 def clean_up_conn(sbs):
     for n in sbs.population:
@@ -79,7 +83,7 @@ FtM = np.asarray(FtM, dtype=int)
 if(not testing and not plot and not find_bias):
 
     try:
-        results = Learning(sbs, utils, F, FtM, C_initial)
+        results = Learning(sbs, utils, F, FtM, C_initial, use_reinforcement=use_reinforcement)
         for key in results:
             results[key].dump(os.path.join(resources, ("%s.dat" % key)))
 

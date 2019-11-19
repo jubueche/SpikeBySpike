@@ -206,6 +206,8 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
     Fs = np.zeros([utils.T, utils.Nx, utils.Nneuron]) # Store the FF weights over the course of training
 
     V = np.zeros((utils.Nneuron, 1))
+    Ca = np.zeros((utils.Nneuron, 1))
+
     O = 0
     k = 0 #! Indexing starts with 0
     r0 = np.zeros((utils.Nneuron, 1))
@@ -244,6 +246,9 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
         w = w / np.sum(w)
 
     j = 1
+    num_update = 0
+    discount_step = 20
+    discount_rate = 0.7
 
     bar = ChargingBar('Learning', max=TotTime-1)
     for i in range(2, TotTime):
@@ -254,6 +259,7 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
             j = j+1
 
         if(((i-2) % utils.Ntime) == 0):
+            num_update += 1
 
             if(use_audio):
                 _, Input = get_input(utils.Ntime, utils, w, audio_helper=audio_helper, use_audio=use_audio,training=True)
@@ -334,6 +340,9 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
         elif(m >= 0):
             ot[k] = 1.0
         
+        # Update the Calcium variable
+        Ca = (1-utils.lam*utils.dt)*Ca + (utils.lam*utils.dt)*np.matmul(C,ot).reshape((-1,1))
+
         # Use whole spike vector
         delta_Omega = - utils.epsr*(utils.beta*np.matmul(V + utils.mu*r0, ot.T) + np.matmul(C + utils.mu*Id,np.matmul(ot,ot.T)))
         if(use_batched):
@@ -369,10 +378,17 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
             else:
                 scaled_reward = reward / initial_reward
                 if(scaled_reward < 1.0):
-                    scaled_reward = scaled_reward**10
+                    pass
+                    #scaled_reward = scaled_reward**10 # Conservative
                 corrected = alpha * scaled_reward
                 print("Reward is %.3f Scaled reward is %.3f EpsR_prior is %.5f Corrected_Eps_R is %.5f" % (reward, scaled_reward, utils.epsr, corrected))
-                utils.epsr = corrected
+                #print("Reward is %.3f" % reward)
+                utils.epsr = corrected # Use for reinforcement
+                """if(num_update == discount_step):
+                    num_update = 0
+                    tmp = np.copy(utils.epsr)
+                    utils.epsr *= discount_rate
+                    print("Updated learning rate from %.4f to %.4f" % (tmp, utils.epsr))"""
                 scaled_rewards.append(reward)
 
         r0 = r0 + ot
@@ -382,21 +398,8 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
     bar.next()
     bar.finish()
     scaled_rewards = np.asarray(scaled_rewards)
-    scaled_rewards.dump("scaled_rewards_reinforcement.dat")
-
-    try:
-        srreinf = np.load("scaled_rewards_reinforcement.dat", allow_pickle=True)
-        srno_reinf = np.load("scaled_rewards.dat", allow_pickle=True)
-        if(not len(srreinf) == len(srno_reinf)):
-            raise Exception("Bad lengths")
-    except:
-        print("Not all data available")
-    else:
-        plt.plot(srreinf, label="Reinforcement")
-        plt.plot(srno_reinf, label="No reinforcement")
-        ax = plt.gca()
-        ax.legend()
-        plt.show()
+    ending = ("reinforce.dat" % (discount_step, discount_rate))
+    scaled_rewards.dump(("scaled_rewards_adaptive_learning_%s" % ending))
         
     ########## Compute the optimal decoder ##########
     if(not use_audio):

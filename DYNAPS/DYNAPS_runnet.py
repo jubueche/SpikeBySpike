@@ -21,7 +21,8 @@ def runnet(sbs, utils, F, C_dis, C_real, duration, x, plot_dist = False, find_bi
 
     if(not find_bias):
         for t in range(1, duration):
-            V_recons[:,t] = 0.1*V_recons[:,t-1] + np.matmul(F.T, x[:,t]) + np.matmul(C_real, R[:,t-1])
+            #V_recons[:,t] = 0.1*V_recons[:,t-1] + np.matmul(F.T, x[:,t]) + np.matmul(C_real, R[:,t-1])
+            V_recons[:,t] = np.matmul(F.T, x[:,t]) + np.matmul(C_real, R[:,t-1])
             current_tresh = utils.Thresh-0.01*np.random.randn(utils.Nneuron, 1)
             (m,k) = my_max(V_recons[:,t] - current_tresh.ravel())
             has_spike = np.sum(O_DYNAPS[k,max(0,t-utils.alignment_delta_t):min(utils.Ntime-1,t+utils.alignment_delta_t)]) > 0

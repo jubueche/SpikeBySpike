@@ -34,6 +34,11 @@ def plot_DYNAPS(utils, direc):
         MembraneVar10 = np.load("Resources/DYNAPS/DYNAPS_MembraneVar_10.dat", allow_pickle=True)
         ErrorC10 = np.load("Resources/DYNAPS/DYNAPS_ErrorC_10.dat", allow_pickle=True)
 
+        Error15 = np.load("Resources/DYNAPS/DYNAPS_Error_15.dat", allow_pickle=True)
+        MeanPrate15 = np.load("Resources/DYNAPS/DYNAPS_MeanPrate_15.dat", allow_pickle=True)
+        MembraneVar15 = np.load("Resources/DYNAPS/DYNAPS_MembraneVar_15.dat", allow_pickle=True)
+        ErrorC15 = np.load("Resources/DYNAPS/DYNAPS_ErrorC_15.dat", allow_pickle=True)
+
     except:
         print("Error loading data.")
         return
@@ -109,7 +114,7 @@ def plot_DYNAPS(utils, direc):
     plt.subplot(411)
     ax = plt.gca()
 
-    l1 = ax.plot(loglog_x, ErrorC10.reshape((-1,1)), color=color_true, linewidth=linewidth, label="Time-window size 5ms")
+    l1 = ax.plot(loglog_x, ErrorC5.reshape((-1,1)), color=color_true, linewidth=linewidth, label="Time-window size 5ms")
     if(use_both):
         ax2 = ax.twinx()
         l2 = ax2.plot(loglog_x, ErrorC5.reshape((-1,1)), color=color_recon, linewidth=linewidth, label="Time-window size 10ms")
@@ -132,7 +137,7 @@ def plot_DYNAPS(utils, direc):
 
     plt.subplot(412)
     ax = plt.gca()
-    ax.plot(loglog_x, Error10.reshape((-1,1)), color=color_true, linewidth=linewidth)
+    ax.plot(loglog_x, Error5.reshape((-1,1)), color=color_true, linewidth=linewidth)
     if(use_both):
         ax2 = ax.twinx()
         ax2.plot(loglog_x, Error5.reshape((-1,1)), color=color_recon, linewidth=linewidth)
@@ -149,7 +154,7 @@ def plot_DYNAPS(utils, direc):
 
     plt.subplot(413)
     ax = plt.gca()
-    ax.plot(loglog_x, MeanPrate10.reshape((-1,1)), color=color_true, linewidth=linewidth)
+    ax.plot(loglog_x, MeanPrate5.reshape((-1,1)), color=color_true, linewidth=linewidth)
     if(use_both):
         ax2 = ax.twinx()
         ax2.plot(loglog_x, MeanPrate5.reshape((-1,1)), color=color_recon, linewidth=linewidth)
@@ -166,7 +171,7 @@ def plot_DYNAPS(utils, direc):
 
     plt.subplot(414)
     ax = plt.gca()
-    ax.plot(loglog_x, MembraneVar10.reshape((-1,1)), color=color_true, linewidth=linewidth)
+    ax.plot(loglog_x, MembraneVar5.reshape((-1,1)), color=color_true, linewidth=linewidth)
     if(use_both):
         ax2 = ax.twinx()
         ax2.plot(loglog_x, MembraneVar5.reshape((-1,1)), color=color_recon, linewidth=linewidth)
