@@ -17,4 +17,5 @@
 \BOOKMARK [3][-]{subsubsection.4.2.4}{Further alignment using time-window update}{subsection.4.2}% 17
 \BOOKMARK [3][-]{subsubsection.4.2.5}{Final pseudo code}{subsection.4.2}% 18
 \BOOKMARK [2][-]{subsection.4.3}{Results}{section.4}% 19
-\BOOKMARK [1][-]{section.5}{Discussion}{}% 20
+\BOOKMARK [2][-]{subsection.4.4}{Reinforcement Learning based step size adaptation}{section.4}% 20
+\BOOKMARK [1][-]{section.5}{Discussion}{}% 21

@@ -805,6 +805,76 @@ reduces the mean firing rate, reduces the decoding error and balances the networ
 
 \newpage
 
+\subsection{Reinforcement Learning based step size adaptation}
+When neural agents interact in their environment, the quality of the internal signal representation
+is crucial. Imprecise representations might lead to unsuccessful execution of tasks such as
+reacting to various types of stimuli. It therefore makes sense that the learning of spike-based signal
+representations should be reward guided. In traditional Machine Learning, many approaches for learning
+a learning rate schedule have been proposed. Recently, \cite{xu2019learning} proposed learning the
+schedule based on reward, composed of different features. \citet{xu2019learning} were able to show
+that this learning adaptation scheme outperformed standard adaptation techniques.
+Despite the fact that the proposed scheme even improves performance, reward based learning rate adaptation
+is more biologically plausible. It seems hard to imagine that the brain performs learning rate reduction
+after a given number of steps. Furthermore, reward based adaptation allows to use multiple features
+for the reward and weigh them differently. Additionally, more abstract rewards can be used such as the
+successful identification of a spoken word.
+In the typical Reinforcement Learning framework, our reward is the reconstruction error on some unseen signal
+and the action is a rescaling of the initial learning rate. To avoid hasty corrections based
+on short-sighted rewards, a time horizon is employed, geometrically weighting $n$ rewards from the past.
+We define the reward to be
+
+\begin{equation*} \label{eq:reward}
+    r(t) = \frac{\sum_{i=0}^{n}{\theta_{t-i} \cdot \lambda^{-i}}}{\sum_{i=0}^{n}{\lambda^{-i}}}
+\end{equation*}
+
+where $\lambda_i$ is the individual reward at time $i$ and $\lambda$ was set to 1.
+After a "burn-in" phase, the initial reward is calculated and taken to be the baseline. Subsequent
+rewards are then rescaled w.r.t. the inital reward. Depending on how unstable the convergence is,
+this rescaled reward can be further rescaled by some exponent $\beta$, yielding extremely small step sizes in case of
+reward.
+The complete update of the learning rate thus becomes:
+
+\begin{equation*}
+  \alpha_{t} =
+    \begin{cases}
+      \alpha_{\textnormal{initial}} \cdot \frac{r(t)}{r(n)} & \text{if $\frac{r(t)}{r(0)} \geq 1$}\\
+      \alpha_{\textnormal{initial}} \cdot (\frac{r(t)}{r(n)})^{\beta} & \text{else}
+    \end{cases}
+\end{equation*}
+
+The effect of this adaptation scheme is made visible in Figure \ref{fig:rewards}, comparing
+rewards over time between no adaptation and the reinforcement learning based adaptation.
+
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width = \columnwidth, height=3cm]{figures/placeholder.jpeg}
+  \caption{Please reproduce figure with correct size!}
+  %! Correct caption please
+  \label{fig:rewards}
+\end{figure}
+
+When applying this scheme to the DYNAPS setting, learning becomes more stable and as Figure \ref{fig:stable}
+shows.
+
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width = \columnwidth, height=10cm]{figures/DYNAPS_convergence_stable.eps}
+  \caption{Please reproduce figure with correct size!}
+  %! Correct caption please
+  \label{fig:stable}
+\end{figure}
+
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width = \columnwidth, height=10cm]{figures/DYNAPS_reconstruction_stable.eps}
+  \caption{Please reproduce figure with correct size!}
+  %! Correct caption please
+  \label{fig:stable_reconstruction}
+\end{figure}
+
+
+\newpage
+
 \section{Discussion}
 
 % Acknowledgements should go at the end, before appendices and references

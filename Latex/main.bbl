@@ -1,4 +1,4 @@
-\begin{thebibliography}{1}
+\begin{thebibliography}{2}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -11,5 +11,9 @@ C.~K. Chow and C.~N. Liu.
   trees.
 \newblock \emph{IEEE Transactions on Information Theory}, IT-14\penalty0
   (3):\penalty0 462--467, 1968.
+
+\bibitem[Xu et~al.(2019)Xu, Dai, Kemp, and Metz]{xu2019learning}
+Zhen Xu, Andrew~M. Dai, Jonas Kemp, and Luke Metz.
+\newblock Learning an adaptive learning rate schedule, 2019.
 
 \end{thebibliography}

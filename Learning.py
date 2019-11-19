@@ -207,6 +207,7 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
 
     V = np.zeros((utils.Nneuron, 1))
     Ca = np.zeros((utils.Nneuron, 1))
+    Cas = np.zeros((utils.Nneuron, utils.Ntime))
 
     O = 0
     k = 0 #! Indexing starts with 0
@@ -247,7 +248,7 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
 
     j = 1
     num_update = 0
-    discount_step = 20
+    discount_step = 10
     discount_rate = 0.7
 
     bar = ChargingBar('Learning', max=TotTime-1)
@@ -341,10 +342,13 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
             ot[k] = 1.0
         
         # Update the Calcium variable
-        Ca = (1-utils.lam*utils.dt)*Ca + (utils.lam*utils.dt)*np.matmul(C,ot).reshape((-1,1))
+        #Ca = 0.7*Ca + np.matmul(C,ot).reshape((-1,1)) # Let the spike already propagate over the recurrent synapses.
+        Ca = 0.2*V + np.matmul(C,ot).reshape((-1,1)) + utils.dt*np.matmul(F.T, Input[:,((i+1) % utils.Ntime)].reshape((-1,1)))
+        Cas[:,t] = Ca.reshape((-1,))
 
         # Use whole spike vector
-        delta_Omega = - utils.epsr*(utils.beta*np.matmul(V + utils.mu*r0, ot.T) + np.matmul(C + utils.mu*Id,np.matmul(ot,ot.T)))
+        #delta_Omega = - utils.epsr*(utils.beta*np.matmul(V + utils.mu*r0, ot.T) + np.matmul(C + utils.mu*Id,np.matmul(ot,ot.T)))
+        delta_Omega = - utils.epsr*(utils.beta*np.matmul(Ca + utils.mu*r0, ot.T) + np.matmul(C + utils.mu*Id,np.matmul(ot,ot.T)))
         if(use_batched):
             if(update_all):
                 batched_delta_Omega[:,ot.astype(bool).ravel()] += delta_Omega[:,ot.astype(bool).ravel()]
@@ -367,6 +371,12 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
 
         if(remove_positive):
             assert (C <= 0).all(), "Positive values in C encountered"
+
+        """if(num_update == discount_step):
+            num_update = 0
+            tmp = np.copy(utils.epsr)
+            utils.epsr *= discount_rate
+            print("Updated learning rate from %.4f to %.4f" % (tmp, utils.epsr))"""
         
         if(use_reinforcement and (((i-2) % 250) == 0)):
             reward, MeanPrate = get_reward(utils, C, F, w, use_audio, use_spiking, audio_helper)
@@ -380,15 +390,10 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
                 if(scaled_reward < 1.0):
                     pass
                     #scaled_reward = scaled_reward**10 # Conservative
-                corrected = alpha * scaled_reward
-                print("Reward is %.3f Scaled reward is %.3f EpsR_prior is %.5f Corrected_Eps_R is %.5f" % (reward, scaled_reward, utils.epsr, corrected))
-                #print("Reward is %.3f" % reward)
-                utils.epsr = corrected # Use for reinforcement
-                """if(num_update == discount_step):
-                    num_update = 0
-                    tmp = np.copy(utils.epsr)
-                    utils.epsr *= discount_rate
-                    print("Updated learning rate from %.4f to %.4f" % (tmp, utils.epsr))"""
+                #corrected = alpha * scaled_reward
+                #print("Reward is %.3f Scaled reward is %.3f EpsR_prior is %.5f Corrected_Eps_R is %.5f" % (reward, scaled_reward, utils.epsr, corrected))
+                print("Reward is %.3f" % reward)
+                #utils.epsr = corrected # Use for reinforcement
                 scaled_rewards.append(reward)
 
         r0 = r0 + ot
@@ -397,9 +402,10 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
         bar.next()
     bar.next()
     bar.finish()
-    scaled_rewards = np.asarray(scaled_rewards)
-    ending = ("reinforce.dat" % (discount_step, discount_rate))
-    scaled_rewards.dump(("scaled_rewards_adaptive_learning_%s" % ending))
+    if(use_reinforcement):
+        scaled_rewards = np.asarray(scaled_rewards)
+        ending = ("no_reinforcement%d_%d.dat" % (discount_step, discount_rate))
+        scaled_rewards.dump(("scaled_rewards_adaptive_learning_%s" % ending))
         
     ########## Compute the optimal decoder ##########
     if(not use_audio):
