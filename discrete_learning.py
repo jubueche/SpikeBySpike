@@ -125,7 +125,7 @@ def Learning(utils, F, C):
 
         OT[:,t] = ot.ravel()
         V_after = V + np.matmul(C,ot).reshape((-1,1))
-        margin = 5
+        margin = 15
         # Do the update here! If neuron k spiked. Also do it using a V_after average.
         """
         Note: It seems that adaptive thresholds are needed, to compensate for the case
@@ -157,11 +157,11 @@ def Learning(utils, F, C):
         if(count == spike_time_window_size):
             too_high_freq = np.linspace(0,utils.Nneuron-1,utils.Nneuron)[firing_rates > 0.6].astype(np.int)
             too_low_freq = np.linspace(0,utils.Nneuron-1,utils.Nneuron)[firing_rates < 0.1].astype(np.int)
-            thresh[too_high_freq] += 0.05
-            #thresh[too_low_freq] -= 0.2
+            thresh[too_high_freq] += 0.5
+            #thresh[too_low_freq] -= 0.6
 
 
-        if((i-2) % (utils.Ntime-1) == 0 and i != 2):
+        if((i-2) % (utils.Ntime-1) == 0):
             Copt = np.matmul(-F, F.T)
             optscale = np.trace(np.matmul(C.T, Copt)) / np.sum(Copt**2)
             Cnorm = np.sum(C**2)
@@ -201,14 +201,12 @@ def Learning(utils, F, C):
 
 
 
-
-
 ############# Execute the learning process
 #np.random.seed(42)
 
 #! How to make the signal smaller? Half A 2000 -> 1000?
 utils = Utils(Nneuron=50, Nx=2, lam=50, dt=0.001, epsr=0.001, epsf=0.0001, alpha=0.18, beta=1.11, mu=0.022,
-            gamma=1.0, Thresh=5, Nit=10, Ntime=1000, A=8000, sigma=30,
+            gamma=1.0, Thresh=3, Nit=100, Ntime=1000, A=2000, sigma=30,
             dynapse_maximal_synapse_ff=8, dynapse_maximal_synapse_o=2, alignment_delta_t=10)
 
 angles = np.linspace(0,2*np.pi,num=utils.Nneuron+1)[:-1]
@@ -219,5 +217,7 @@ F = D.T
 Omega = -np.matmul(F,F.T)
 noise_map = np.round(9*np.random.randn(utils.Nneuron,utils.Nneuron)).astype(np.int)
 Omega += noise_map
+print(Omega)
+Omega = np.round(2*np.random.randn(utils.Nneuron,utils.Nneuron)).astype(np.int)
 
 Learning(utils,F=F, C=Omega)
