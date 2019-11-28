@@ -74,6 +74,7 @@ if(not testing):
     F_initial = utils.gamma*np.divide(F_initial, np.sqrt(np.matmul(np.ones((utils.Nx,1)), np.sum(F_initial**2, axis=0).reshape((1,utils.Nneuron)))))
     # Initial recurrent weights have small scales, except for the resets
     C_initial = -0.2*np.random.rand(utils.Nneuron, utils.Nneuron)-0.5*np.eye(utils.Nneuron)
+    C_initial = -np.eye(utils.Nneuron)*0.5
 
     ########## Prepare weight matrix for the DYNAPS ##########
     if(not use_audio):

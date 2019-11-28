@@ -81,12 +81,12 @@ class SBSController():
         
         
     @classmethod
-    def from_default(self, clear_cam = True, debug = False):
+    def from_default(self, clear_cam = True, debug = False, num_signals=2):
         c = rpyc.classic.connect("localhost", 1300)
         RPYC_TIMEOUT = 300 #defines a higher timeout
         c._config["sync_request_timeout"] = RPYC_TIMEOUT  # Set timeout to higher level
 
-        return SBSController(start_neuron=1, chip_id=1, c=c, core_id=0, debug=debug, clear_cam = clear_cam)
+        return SBSController(start_neuron=1, chip_id=1, c=c, core_id=0, debug=debug, clear_cam = clear_cam, num_signals=num_signals)
 
 
     def execute(self):
@@ -203,7 +203,7 @@ class SBSController():
         self.spikes_up = np.copy(np.asarray(ups))
         self.spikes_down = np.copy(np.asarray(downs))
 
-        """if(self.debug):
+        if(self.debug):
             duration = self.signal_length
             plt.figure(figsize=(12, 12))
 
@@ -230,7 +230,7 @@ class SBSController():
             plt.xlim((0,duration))
 
             plt.tight_layout()
-            plt.show()"""
+            plt.show()
 
 
         self.spike_times = self.compile_preloaded_stimulus(dummy_neuron_id = 255)

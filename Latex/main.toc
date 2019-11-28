@@ -1,21 +1,20 @@
 \contentsline {section}{\numberline {1}Introduction}{2}{section.1}% 
 \contentsline {section}{\numberline {2}Theory: Representing signals spike-by-spike}{2}{section.2}% 
-\contentsline {subsection}{\numberline {2.1}Introduction}{2}{subsection.2.1}% 
-\contentsline {subsection}{\numberline {2.2}Network dynamics}{2}{subsection.2.2}% 
-\contentsline {subsection}{\numberline {2.3}The optimal decoder}{3}{subsection.2.3}% 
-\contentsline {subsection}{\numberline {2.4}Optimal network connectivity}{4}{subsection.2.4}% 
-\contentsline {subsection}{\numberline {2.5}Learning optimal recurrent connectivity}{5}{subsection.2.5}% 
-\contentsline {subsection}{\numberline {2.6}Simulation and results}{6}{subsection.2.6}% 
-\contentsline {subsection}{\numberline {2.7}Limitations of the theory}{9}{subsection.2.7}% 
-\contentsline {section}{\numberline {3}Hardware: The DYNAPS chip}{11}{section.3}% 
-\contentsline {section}{\numberline {4}Learning optimal spike-based signal representations on the DYNAPS}{11}{section.4}% 
-\contentsline {subsection}{\numberline {4.1}Setup: Learning in-the-loop}{11}{subsection.4.1}% 
-\contentsline {subsection}{\numberline {4.2}Aligning on- and off chip network dynamics}{12}{subsection.4.2}% 
-\contentsline {subsubsection}{\numberline {4.2.1}Network with spiking input}{12}{subsubsection.4.2.1}% 
-\contentsline {subsubsection}{\numberline {4.2.2}The weights on-chip}{14}{subsubsection.4.2.2}% 
-\contentsline {subsubsection}{\numberline {4.2.3}Batched updates}{15}{subsubsection.4.2.3}% 
+\contentsline {subsection}{\numberline {2.1}Network dynamics}{2}{subsection.2.1}% 
+\contentsline {subsection}{\numberline {2.2}The optimal decoder}{3}{subsection.2.2}% 
+\contentsline {subsection}{\numberline {2.3}Optimal network connectivity}{4}{subsection.2.3}% 
+\contentsline {subsection}{\numberline {2.4}Learning optimal recurrent connectivity}{5}{subsection.2.4}% 
+\contentsline {subsection}{\numberline {2.5}Simulation and results}{6}{subsection.2.5}% 
+\contentsline {subsection}{\numberline {2.6}Limitations of the theory}{9}{subsection.2.6}% 
+\contentsline {section}{\numberline {3}Hardware: The DYNAP-SE chip}{11}{section.3}% 
+\contentsline {section}{\numberline {4}Learning optimal spike-based signal representations on the DYNAP-SE}{12}{section.4}% 
+\contentsline {subsection}{\numberline {4.1}Setup: Learning in-the-loop}{12}{subsection.4.1}% 
+\contentsline {subsection}{\numberline {4.2}Aligning on- and off chip network dynamics}{13}{subsection.4.2}% 
+\contentsline {subsubsection}{\numberline {4.2.1}Network with spiking input}{13}{subsubsection.4.2.1}% 
+\contentsline {subsubsection}{\numberline {4.2.2}The weights on-chip}{16}{subsubsection.4.2.2}% 
+\contentsline {subsubsection}{\numberline {4.2.3}Batched updates}{17}{subsubsection.4.2.3}% 
 \contentsline {subsubsection}{\numberline {4.2.4}Further alignment using time-window update}{17}{subsubsection.4.2.4}% 
-\contentsline {subsubsection}{\numberline {4.2.5}Final pseudo code}{18}{subsubsection.4.2.5}% 
-\contentsline {subsection}{\numberline {4.3}Results}{19}{subsection.4.3}% 
-\contentsline {subsection}{\numberline {4.4}Reinforcement Learning based step size adaptation}{21}{subsection.4.4}% 
-\contentsline {section}{\numberline {5}Discussion}{22}{section.5}% 
+\contentsline {subsubsection}{\numberline {4.2.5}Final pseudo code}{20}{subsubsection.4.2.5}% 
+\contentsline {subsection}{\numberline {4.3}Results}{21}{subsection.4.3}% 
+\contentsline {subsection}{\numberline {4.4}Reinforcement Learning based step size adaptation}{23}{subsection.4.4}% 
+\contentsline {section}{\numberline {5}Discussion}{25}{section.5}% 

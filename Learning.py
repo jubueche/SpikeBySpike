@@ -183,7 +183,7 @@ def look_back_reward(lookback):
         s += lam**(-i)
     return reward / s
 
-def Learning(utils, F, C, update_all = False, discretize_weights = False, number_of_bins = 100,
+def Learning(utils, F, C, update_all = False, discretize_weights = False, number_of_bins = 1000,
             remove_positive = False, use_spiking = False, use_batched=False, use_batched_nn=False,
             use_audio=False, audio_helper = None, use_reinforcement = False):
 
@@ -206,8 +206,6 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
     Fs = np.zeros([utils.T, utils.Nx, utils.Nneuron]) # Store the FF weights over the course of training
 
     V = np.zeros((utils.Nneuron, 1))
-    Ca = np.zeros((utils.Nneuron, 1))
-    Cas = np.zeros((utils.Nneuron, utils.Ntime))
 
     O = 0
     k = 0 #! Indexing starts with 0
@@ -341,14 +339,10 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
         elif(m >= 0):
             ot[k] = 1.0
         
-        # Update the Calcium variable
-        #Ca = 0.7*Ca + np.matmul(C,ot).reshape((-1,1)) # Let the spike already propagate over the recurrent synapses.
-        Ca = 0.2*V + np.matmul(C,ot).reshape((-1,1)) + utils.dt*np.matmul(F.T, Input[:,((i+1) % utils.Ntime)].reshape((-1,1)))
-        Cas[:,t] = Ca.reshape((-1,))
-
         # Use whole spike vector
+        V_after = (1-utils.lam*utils.dt)*V + utils.dt*np.matmul(F.T, Input[:,((i+1) % utils.Ntime)].reshape((-1,1))) + np.matmul(C,ot).reshape((-1,1)) + 0.001*np.random.randn(utils.Nneuron, 1)
+        delta_Omega = - utils.epsr*(utils.beta*np.matmul(V + utils.mu*r0, ot.T) - np.matmul(C - utils.mu*Id,np.matmul(ot,ot.T)))
         #delta_Omega = - utils.epsr*(utils.beta*np.matmul(V + utils.mu*r0, ot.T) + np.matmul(C + utils.mu*Id,np.matmul(ot,ot.T)))
-        delta_Omega = - utils.epsr*(utils.beta*np.matmul(Ca + utils.mu*r0, ot.T) + np.matmul(C + utils.mu*Id,np.matmul(ot,ot.T)))
         if(use_batched):
             if(update_all):
                 batched_delta_Omega[:,ot.astype(bool).ravel()] += delta_Omega[:,ot.astype(bool).ravel()]
@@ -378,7 +372,7 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
             utils.epsr *= discount_rate
             print("Updated learning rate from %.4f to %.4f" % (tmp, utils.epsr))"""
         
-        if(use_reinforcement and (((i-2) % 250) == 0)):
+        if(use_reinforcement and (((i-2) % 2500) == 0)):
             reward, MeanPrate = get_reward(utils, C, F, w, use_audio, use_spiking, audio_helper)
             reward_lookback = update_lookback(reward_lookback, reward)
             reward = look_back_reward(reward_lookback)
@@ -388,12 +382,12 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
             else:
                 scaled_reward = reward / initial_reward
                 if(scaled_reward < 1.0):
-                    pass
-                    #scaled_reward = scaled_reward**10 # Conservative
-                #corrected = alpha * scaled_reward
+                    scaled_reward = scaled_reward**12 # Conservative
+
+                corrected = alpha * scaled_reward
                 #print("Reward is %.3f Scaled reward is %.3f EpsR_prior is %.5f Corrected_Eps_R is %.5f" % (reward, scaled_reward, utils.epsr, corrected))
                 print("Reward is %.3f" % reward)
-                #utils.epsr = corrected # Use for reinforcement
+                utils.epsr = corrected # Use for reinforcement
                 scaled_rewards.append(reward)
 
         r0 = r0 + ot
@@ -404,7 +398,7 @@ def Learning(utils, F, C, update_all = False, discretize_weights = False, number
     bar.finish()
     if(use_reinforcement):
         scaled_rewards = np.asarray(scaled_rewards)
-        ending = ("no_reinforcement%d_%d.dat" % (discount_step, discount_rate))
+        ending = ("reinforcement%d_%d.dat" % (discount_step, discount_rate))
         scaled_rewards.dump(("scaled_rewards_adaptive_learning_%s" % ending))
         
     ########## Compute the optimal decoder ##########

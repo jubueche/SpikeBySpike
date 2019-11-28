@@ -26,63 +26,64 @@
 \newpage
 
 \begin{abstract}%   <- trailing '%' for backward compatibility of .sty file
-This paper describes the mixtures-of-trees model, a probabilistic 
-model for discrete multidimensional domains.  Mixtures-of-trees 
-generalize the probabilistic trees of \citet{chow:68}
-in a different and complementary direction to that of Bayesian networks.
-We present efficient algorithms for learning mixtures-of-trees 
-models in maximum likelihood and Bayesian frameworks. 
-We also discuss additional efficiencies that can be
-obtained when data are ``sparse,'' and we present data 
-structures and algorithms that exploit such sparseness.
-Experimental results demonstrate the performance of the 
-model for both density estimation and classification. 
-We also discuss the sense in which tree-based classifiers
-perform an implicit form of feature selection, and demonstrate
-a resulting insensitivity to irrelevant attributes.
+The question of how a population of neurons encodes a signal in the brain is one of the
+most fundamental, yet unsolved problems in neuroscience. In general, it is believed that
+neurons encode information via their firing rate, specifically via Poisson rate codes (\cite{Maass:2002:RCW:639717.639718}).
+Due to the unreliability induced by the Poisson-process, the representation error using Poisson
+rate codes only scales with $\frac{1}{\sqrt{M}}$, where $M$ is the number of spikes.
+This leads to the fact that many spikes fired are redundant and are thus a waste of energy,
+contrary to the fact that neural agents seek to minimize energy consumption. This
+leads to the natural question of whether there exists a more complex system that
+represents signals with a representation error that scales with $\frac{1}{M}$, making better
+use of individual spikes.
+  
+
 \end{abstract}
 
 \begin{keywords}
-  Bayesian Networks, Mixture Models, Chow-Liu Trees
+  Neuromorphic Processors, Optimal Signal Representation, Neural Coding
 \end{keywords}
 
 \section{Introduction}
 
-- Why is it important to represent signals?
-- What are desirable properties when representing a signal?
-(fault tolerance (not only a few neurons contribute), cost efficiency, reconstruction error,
-generalization, adaptation)
-- Where could this be useful? 
--Machine learning (transform input to sparse high dimensional vectors
-and use representation to eg learn, denoise, cluster etc)
-- Neuro Agents who encounter signals of the same domain very often and want to represent
-these signals with as few spikes as possible
-- Links to general thesis that agents want to minimize free energy? Friston?
+Recently, \cite{wiel2017learning} proposed a local online learning rule, guiding a recurrently connected
+network into a tightly balanced domain. The authors showed that keeping a tight balance,
+commonly referred to as E/I-balance, improves the representation error, leads to sparser spike
+trains, and assigns higher value to individual spikes.
+The goal of this thesis is to implement this local learning rule on a neuromorphic chip in-the-loop,
+meaning that weights are iteratively loaded onto the neuromorphic chip and updated offline using
+responses obtained from the chip. Furthermore, this thesis aims at investigating the
+possibility of implementing this learning rule directly on-chip using mixed analog/digital
+circuits, by identifying possible weaknesses of the proposed theory and resolving them.
+Having a circuit that learns optimal spike-based signal representation is desirable from many points of view.
+From a neuroscience perspective, the emulation of such learning rule in a biologically realisitic setting
+would show that brains are indeed capable of implementing a more complex way of representing signals
+and might lead to new theories on how this is actually achieved in a pure biological setting.
+Additionally, the possibility of representing signals with high precision while saving a lot of
+energy might be applicable in neural agents, operating autonomously in environments that are providing
+continous stimuli or IoT devices requiring ultra low power consumption.
+In a more classical Machine Learning setting, learning such a network would
+correspond to a standard Autoencoder (\cite{Vincent:2008:ECR:1390156.1390294}) with a high dimensional, sparse latent space, possibly
+opening up new ways of performing learning tasks in neural agents.
+
 
 \section{Theory: Representing signals spike-by-spike}
-\subsection{Introduction}
-Is tight E/I-balance better than loose? What do the studies suggest? What do rodents or 
-other animals do? What about rate encoding?
-In the following we derive a learning rule that achieves a tight E/I-balance and 
-minimizes reconstruction error and generates sparse spike trains.
-
-We will show only the learning rules for the recurrent connections.
 
 \subsection{Network dynamics}
 %Define voltage equation(diff and explicit), rate equation, reconstructed x
 %State assumptions such as fully connected, not respecting Dales law. Also state that these
 %assumptions can be relaxed and reference to paper that achieves this
 
-In this work, we assume that we have a population of $N$ neurons into which $N_x$ continous
+[\cite{wiel2017learning}] In this work, we assume that we have a population of $N$ neurons into which $N_x$ continous
 signals are fed using a linear transformation $\mathbf{F}$. We furthermore assume that the population
 of $N$ neurons is fully interconnected by a matrix $\mathbf{\Omega}$. It is thus beneficial to assume 
-the computationally efficient Leaky Integrate-and-Fire (LIF) neuron model (cite LIF). 
+the computationally efficient Leaky Integrate-and-Fire (LIF) neuron model (\cite{Lapicque}). 
 The network dynamics can thus be written as
 
 \begin{equation} \label{voltage_dynamic_diff}
     \dot{V}(t) = -\lambda V(t) + \mathbf{F^T}c(t) + \mathbf{\Omega} o(t) 
 \end{equation}
-%Where klein
+
 Where $c(t)$ is the input signal at time $t$ and $o(t)$ the spike train of the population, also at
 time $t$. By defining a filtered version of the input $c$ and the spike train $o$, we can integrate Equation \ref{voltage_dynamic_diff}
 to
@@ -109,16 +110,16 @@ input used throughout this thesis is presented in Figure \ref{fig:input}.
 \end{figure}
 
 It should be noted that for the sake of mathematical simplicity, as well as ease of
-transformation to a neuromorphic chip, this setup does not respect Dales law, as it
-allows for neurons to be excitatory and inhibitory at the same time. However, (cite Brendel)
+transformation to a neuromorphic chip, this setup does not respect Dales law (\cite{Dale1935}), as it
+allows for neurons to be excitatory and inhibitory at the same time. However, (\cite{wiel2017learning})
 also derives learning rules that respect the more biologically plausible setup.
 
 We furthermore assume a readout layer, or decoder, that reconstructs the input $x$ using
 the rates exposed by the population. The reconstructed signal can be defined as
 
-\begin{equation} \label{reconstructed_x_explicit}
+\begin{equation*}
     \mathbf{\hat{x}} = \mathbf{Dr}
-\end{equation} 
+\end{equation*} 
 where the decoder $\mathbf{D}$ is a matrix of size ($N_x$,$N$), $\mathbf{r}$ is a matrix of shape
 ($N$,$N_\textnormal{time}$) and $\mathbf{x}$ is a matrix of shape ($N_x$,$N_\textnormal{time}$).
 
@@ -134,24 +135,22 @@ low reconstruction error with sparse (\textit{l1}-cost) and dense (\textit{l2}-c
 
 Because of Equation \ref{rate_diff}, one can see that enforcing \textit{l2}-sparsity allows for
 dense population codes (since it keeps the rates genereally low, but does not enforce 0 values). 
-In contrast, \textit{l1}-sparsity encourages 0 values in the rates, which correponds to sparse spike trains (cite spars.).
+In contrast, \textit{l1}-sparsity encourages 0 values in the rates, which correponds to sparse spike trains (\cite{Tibshirani1996}).
 This loss function gives us an explicit formula for the optimal decoder that is achievable by the network.
 By taking the derivative of Equation \ref{loss_function_optimal_decoder} with respect to $\mathbf{D}$ and setting it to \textbf{0}, we get
 
-\begin{equation} \label{optimal_decoder_no_lagrangian}
+\begin{equation*}
     \mathbf{D}^* = \mathbf{xr^T}(\mathbf{rr^T})^{-1}
-\end{equation}
+\end{equation*}
 
 
 \subsection{Optimal network connectivity}
-%First derive the optimal connectivity assuming we have the optimal decoder. p. 7-8
-%Mention the derivation involving one spike per time as this imposes a limit to our later work.
-%Derive optimal network connectivity
-Following (cite Brendel), we will now discuss how to optimize the network topology.
+
+Following \cite{wiel2017learning}, we will now discuss how to optimize the network topology.
 In particular the synaptic weights and the thresholds
 under the assumption that the decoder is fixed. Note that letters such as
 $r$ are not bold and thus stand for a vector in time, $r(t)$, which is abbreviated for clarity.
-The main idea (cite Learning optimal spike-based representations) behind the
+The main idea (\cite{Bourdoukan:2012:LOS:2999325.2999390}) behind the
 following derivation is that a neuron in the population should only spike if it
 contributes to the reduction of the loss function.
 This means that
@@ -163,9 +162,9 @@ This means that
 Using Equation \ref{loss_function_optimal_decoder}, $\textit{L(neuron n spikes)}$ can be
 written as
 
-\begin{equation} \label{neuron_n_spiked_loss}
+\begin{equation*}
   \textit{L(neuron n spikes)}=\|c-Dr-D_n \|_2^2+\mu\|r+e_n\|^2_2+\nu\|r+e_n\|_1
-\end{equation}
+\end{equation*}
 where $e_n$ is the unit vector with $(e_n)_j = 1$ if $j=n$ and 0 else.
 
 We observe that
@@ -201,9 +200,9 @@ and the threshold of the $n$-th neuron as
 using the differential equations \ref{input_diff} and \ref{rate_diff}, as well as Equation \ref{voltage_dynamic_diff}
 we rewrite Equation \ref{voltage_via_dynamics} to
 
-\begin{equation} \label{voltage_diff_via_dynamics}
+\begin{equation*}
   V(t) = \mathbf{F^T}x(t) + \mathbf{\Omega} o(t)
-\end{equation}
+\end{equation*}
 where we substituted $\mathbf{F} = \mathbf{D}$ and $\mathbf{\Omega} = -\mathbf{D^TD} - \mu \mathbf{I} = -\mathbf{F^TF} - \mu \mathbf{I}$, which are the optimal feed-forward and
 recurrent weights in the network, with respect to the decoder.
 
@@ -213,20 +212,17 @@ This way the error dictates the produced spike train, hence \emph{error-driven c
 Since neurons have a "fixed" threshold, Equation \ref{threshold_via_dynamics} can be seen
 as a constraint on the decoder length for a neuron by simply rewriting it to
 
-\begin{equation} \label{threshold_rewritten}
+\begin{equation*}
   \|D_n\|_2^2 = 2T_n - \mu - \nu
-\end{equation} 
+\end{equation*} 
 
 
 \subsection{Learning optimal recurrent connectivity}
-%Show, mathematically, that a balanced network ensures low recontruction error, assuming
-%the voltage represents the error
-%From the previous subsection we derive the recurrent weight learning rule, based on the fact 
-%that a balanced network suffices.
+
 We have seen from the previous section that the voltage encodes the global loss and
 that a neuron fires a spike only to reduce the reconstruction error.
 This corresponds to the hypothesis that a tightly balanced network exhibits a low reconstruction
-error, as discussed in section (ref section).
+error.
 This however corresponds to the state where $\mathbf{x} - \mathbf{\hat{x}} \approx 0$.
 We observe that the neuron has only access to the linearly transformed version: $F_n^T\mathbf{x} - F_n^TD\mathbf{r}$. 
 However, this value should also be close to zero, as it reflects part of the reconstruction error.
@@ -269,16 +265,16 @@ Using this relation we can rewrite the Equation \ref{relation_voltage_before_aft
 
 this term has the derivative, with respect to $\Omega_{n,k}$:
 
-\begin{equation}
+\begin{equation*}
     \Delta \Omega_{n,k} = -2V^{\textnormal{before}}_n - \Omega_{n,k}
-\end{equation}
+\end{equation*}
 
 if neuron $k$ spiked. The connection $\Omega_{n,k}$ is the connection from the spiking, presynaptic neuron with index $k$ to the $n$-th neuron.
 
 If we induce a small \textit{l2}-cost on the rates, $\mathbf{\Omega}$ should ideally converge towards $-\mathbf{F^TD} - \mu \mathbf{I}$. This causes a minor change in the learning rule for the recurrent weights:
-\begin{equation} \label{updated_recurrent_learning_rule}
+\begin{equation*}
     \Delta \Omega_{n,k} = -2(V^{\textnormal{before}}_n + \mu r_n) - \Omega_{n,k} - \mu \delta_{n,k}
-\end{equation}
+\end{equation*}
 
 where $\delta_{n,k}$ is $[e_n]_j$ and therefore 1 if $n =j$.
 
@@ -288,10 +284,10 @@ where $\delta_{n,k}$ is $[e_n]_j$ and therefore 1 if $n =j$.
 %Show figures of the weight convergence, the error convergence, variance of membrane potential
 %mean firing rate and actual decoding that is happening.
 Learning the feed-forward connections happens on a much slower timescale and thus requires
-far more training iterations. Since the DYNAPS operates on a much slower, biologically
-more plausible timescale (cite DYNAPS), training takes orders of magnitude longer. We therefore decided to omit
+far more training iterations. Since the DYNAP-SE operates on a much slower, biologically
+more plausible timescale (\cite{DBLP:journals/corr/abs-1708-04198}), training takes orders of magnitude longer. We therefore decided to omit
 learning the feed-forward weights and keep them constant after an initial random initialisation.
-The pseudo code presented below was adapted from (cite Brendel) and shows the learning procedure.
+The pseudo code presented below was adapted from (\cite{wiel2017learning}) and shows the learning procedure.
 
 \vspace{1cm}
 \IncMargin{1em}
@@ -323,7 +319,7 @@ The pseudo code presented below was adapted from (cite Brendel) and shows the le
     $r_t \leftarrow (1 - \lambda dt) \cdot r_t$ \;
   }
   \caption{Algorithm describing the learning procedure without learning the feed-forward weights.
-  The used prameters can be found in the Appendix.  $\Omega_k$ and $I_k$ reference the
+  $\Omega_k$ and $I_k$ reference the
   $k$-th column of the respective matrix and $\ast$ is the convolution operator.}
 \end{algorithm}
 \DecMargin{1em}
@@ -337,7 +333,7 @@ Initially, the network is in an unbalanced state and the
 voltage predominantly reflects the transformed input.
 After learning the recurrent weights, incoming excitatory signals are matched by
 recurrent inhibition to keep the network in a tightly balanced state. This effect can be
-observed in Figure \ref{fig:convergence}(ii) where we show the variance of the
+observed in Figure \ref{fig:convergence}(iv) where we show the variance of the
 membrane potential over time. By converging towards the optimal recurrent connection
 and keeping the network in a tight balance, we fulfill the conditions necessary
 for representing the signal optimally. The result of this can be seen
@@ -346,14 +342,14 @@ the reconstruction error converges towards the discretization limit imposed by t
 neurons. Since the learning rule keeps the network in a tight balance, no spike is fired
 unnecessarily. Each spike, following Equation \ref{loss_smaller}, contributes
 to reducing the global reconstruction error. This way, the resulting spike train sparsifies,
-which can be observed in Figure \ref{fig:convergence}(iv). \\
+which can be observed in Figure \ref{fig:convergence}(ii). \\
 
 \begin{figure}[!htb]
   \includegraphics[width = \columnwidth, height=12cm]{figures/convergence.eps}
   %! Correct caption please
-  \caption{Multiple figures in here: (i) Convergence of optimal weights
-  (ii) Convergence of membrane variance (iii) Convergence of error (iv) Convergence
-  of firing rate}
+  \caption{(i) Convergence of optimal weights
+  (ii) Convergence of error (iii) Convergence of mean firing rate (iv) Convergence
+  of voltage variance}
   \label{fig:convergence}
 \end{figure}
 \newpage
@@ -375,10 +371,9 @@ the population.
 
 \begin{figure}[!htb]
   \includegraphics[width = \columnwidth, height=14cm]{figures/reconstruction.eps}
-  \caption{Multiple figures in here: (i) Convergence of optimal weights
-  (ii) Convergence of membrane variance (iii) Convergence of error (iv) Convergence
-  of firing rate}
-  %! Correct caption please
+  \caption{The two-dimensional input is reconstructed pre-learning (row 1 \& 2) and
+  post-learning (row 4 \& 5). Due to the evolving tight balance, the population
+  spike trains sparsify (row 3 \& 6).}
   \label{fig:reconstruction}
 \end{figure}
 \newpage
@@ -392,34 +387,39 @@ Unfortunately, the theory proposed by (cite Brendel) has some limitations: \\
 1) Discretization of the weights causes unsuccessful learning of the recurrent matrix and therefore
 does not lead to improved sparsity and reconstruction error. \\
 2) Updating the rate, as well as all outgoing connections of \emph{all} neurons that spiked,
-results in no improvement of the mean firing rate and the reconstruction error. \\
+results in no improvement of the mean firing rate and the reconstruction error.
+Furthermore, the update utilizes the voltage \emph{before} the spike propagated. \\
 
-In terms of biological plausibility, the first issue is far more severe than the second one. It is well
-known that, although microcircuits can show dense connections (cite nature2016), the weight resolution
-in the brain is limited to only a few bits (need citation). In this theory, tight balance of the input
-currents is of crucial importance. When discretizing the weights, this balance can no longer
-be achieved and therefore the network seems to fire uncontrollably, as can be seen in Figure
-\ref{fig:discrete_spike_trains}. Naturally, this uncontrolled firing causes high reconstruction
-error and the learned matrix becomes irrelevant (Figure \ref{fig:convergence_ua_discrete}).
+In this theory, tight balance of the input
+currents is of crucial importance. When discretizing the weights, this tight balance can no longer
+be achieved and no improvement of the reconstruction error is visible.
+Considering that synaptic weights in the human brain actually do have a reasonably high resolution (need citation),
+this constraint is solely imposed by the hardware we use and will be resolved in future chip designs
+by e.g. using multi-memristive synapses (\cite{Boybat2018}).
 
 \begin{figure}[!htb]
   \includegraphics[width = \columnwidth, height=4cm]{figures/spike_train_cont_vs_disc.eps}
   \caption{The spike train after training using continous weights (top), exhibits a usable,
   distributed pattern, while the learned, discretized weight matrix (bottom) shows a subset
   of neurons firing at a high frequency.}
-  %! Correct caption please
   \label{fig:discrete_spike_trains}
 \end{figure}
 
 Assuming a continous timescale, there can not be an instance in time, where two neurons fire simultaneously.
-However, in the simulations, as well as on the DYNAPS (cite DYNAPS), time is discretized and therefore
+However, in the simulations, as well as on the DYNAP-SE, time is discretized and therefore
 the event that two neurons fire at the same time \emph{can} happen.
 When adapting Equation \ref{relation_voltage_before_after} to account for this possibility and rewriting
 the update rule accordingly, we found that the recurrent weights were still learned. Furthermore, the
-varation in the membrane potential also decreased, which is explained by the fact that we are still
+variation in the membrane potential also decreased, which is explained by the fact that we are still
 minimizing the loss in Equation \ref{loss_voltage_before_after}.
 However, the derivation of the optimal network connectivity
 in Equation \ref{network_dynamics} falsely assumes only one spike per time.
+
+The only problem that we identified as biologically unrealistic is the fact that the post-synaptic
+neuron updates the synaptic weight based on the voltage \emph{before} the spike propagated, meaning
+the voltage was not affected by the spike. This problem might be resolved by implementing
+a slow changing variable, approximating the voltage before the spike due to the slow update.
+
 \newpage
 
 \begin{figure}[!htb]
@@ -434,12 +434,52 @@ in Equation \ref{network_dynamics} falsely assumes only one spike per time.
 
 \newpage
 
-\section{Hardware: The DYNAPS chip} \label{sec:DYNAPS}
+\section{Hardware: The DYNAP-SE chip} \label{sec:DYNAP-SE}
+The DYNAP-SE is a fully custom mixed signal neuromorphic chip developed by Ning Qiao, Saber Moradi,
+Fabio Stefanini and Giacomo Indiveri (\cite{DBLP:journals/corr/abs-1708-04198}). It comprises 4 chips, each containing 4 cores with
+4x256 neurons following the adaptive exponential integrate-and-fire neuron model (AEI\&F) with a fan-in of 64 and fan-out of 4064.
+Each neuron has a Content Adressable Memory (CAM) block, containing 64 addresses representing the pre-synaptic
+neurons that the neuron is subscribed to. The DYNAP-SE comprises 4 different synapse types: Slow/Fast
+inhibitory and excitatory synapses. Using the Address-Event-Representation (AER) (\cite{Deiss:1999:PCI:296533.296540}), spikes are asynchronously
+transmitted in the form of neuron addresses. The spike times are directly encoded in the event times and routed
+using a mixed 2D-mesh-hierachical routing scheme with microsecond precision.
 
-\section{Learning optimal spike-based signal representations on the DYNAPS}
+\begin{figure}[!htb]
+  \includegraphics[width=\columnwidth]{figures/routing.png}
+  \caption{(l) Each neuron can utilize at most 64 synapses, meaning that it can have at most 64 unique connections.
+  This imposes a severe constraint on network precision, since weights are usually a multiple of single synapses,
+  as described in section (\ref{sec:weights}). (r) Each neuron is assigned an address that is encoded as a digital
+  word and transmitted as soon as the neuron spikes/triggers an event. Using the transmitted address and
+  arrival time, spikes can be decoded again.}
+  \label{fig:routing}
+\end{figure}
+
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width=7cm]{figures/dynaps.png}
+  \caption{The DYNAP-SE has a core area of $0.36mm^2$ and utilizes roughly $1.68nJ$ per spike.
+  In comparison: IBM's True North (\cite{Cassidy2016TrueNorthAH}) utilizes $3.9nJ$ on $0.094mm^2$ core area.}
+  \label{fig:routing}
+\end{figure}
+
+
+\newpage
+
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width=8cm]{figures/meshed_hier_routing.png}
+  \caption{Following a tree-based routing strategy, groups of four cores can communicate with other cores in the same
+  group using level 1 R2 routers or between different groups on the same tile using level 2 R2 routers. To reach
+  another tile, the level 3 R2 router is used. Following a 2D-mesh approach, the R3 router can be used to communicate
+  between multiple chips.}
+  \label{fig:routing}
+\end{figure}
+
+
+\section{Learning optimal spike-based signal representations on the DYNAP-SE}
 \subsection{Setup: Learning in-the-loop}
 %This section describes the learning procedure using a diagram. Should be one page max.
-Although spike-timing dependent plasticity is implemented on-chip (citation), this learning
+Although spike-timing dependent plasticity is implemented on-chip (\cite{DBLP:journals/corr/abs-1708-04198}), this learning
 algorithm requires an in-the-loop setup. The reason for this was already pointed out in
 section \ref{sec:limitations}: Discretizing the weights in the simulation
 makes learning impossible, even with a relatively high number of bins. This is why
@@ -458,32 +498,26 @@ program see section \ref{sec:pseudo-code}.
     and loaded onto the chip. The following four steps are executed repeatedly
     for a fixed number of iterations: A new signal is generated and stored in the
     FPGA memory, the recurrent weights $\mathbf{\Omega}$ are updated, discretized
-    to $\mathbb{Z}$ and loaded onto the chip, the DYNAPS runs on the spiking input
+    to $\mathbb{Z}$ and loaded onto the chip, the DYNAP-SE runs on the spiking input
      and finally $\Delta \mathbf{\Omega}$ is computed using the spike trains
-    $\mathbf{O}^{\textnormal{DYNAPS}}$ recorded from the DYNAPS.}
+    $\mathbf{O}^{\textnormal{DYNAP-SE}}$ recorded from the DYNAP-SE.}
     \label{fig:in-the-loop}
   \end{figure}
 \end{center}
 
-Since this setup utilizes the DYNAPS, which operates on a biologically plausible timescale,
+Since this setup utilizes the DYNAP-SE, which operates on a biologically plausible timescale,
 this learning process takes orders of magnitudes longer than the off-chip simulation.
 
 \newpage
 
 \subsection{Aligning on- and off chip network dynamics}
 \subsubsection{Network with spiking input} \label{sec:spiking-input}
-%This section should describe how the continous input is converted to UP and DWN channels
-%as well as the reconstruction using matrix M.
-%We should also show that we can initially transform the input signal from the spike domain
-%back to the continous domain, and then apply the transformation. But to match the DYNAPS, 
-%we need a matrix with weights that takes care of this integration and transformation
-%in the same time. In other words, we need to show that the matrix FtM*I provides the same
-%functionality as Ftx\_hat where x\_hat is the reconstructed signal.
+
 Information in the brain is processed in the analog and digital domain. Spikes, emitted from pre-synaptic
 neurons, cause a change in the membrane potential of synapses leading to the emission of different
 neurotransmitters. Inputs to the brain are converted to spikes using different nerve cells, such as the
-photoreceptors in the retina. The DYNAPS also receives input in the form of spikes, which raises the question
-on how to convert a continous signal to spikes. One simple approach called Delta Modulation (citationHere),
+photoreceptors in the retina. The DYNAP-SE also receives input in the form of spikes, which raises the question
+on how to convert a continous signal to spikes. One simple approach called Delta Modulation (\cite{corradi}),
 converts a 1D-signal to two channels, namely the UP and DOWN channel. The spikes emitted in the respective
 channels depend on the magnitude and direction of the current signal slope. Figure \ref{fig:delta_modulated_input}
 illustrates the spikes of a 1D-signal using 0.05 as a spiking threshold in both directions.
@@ -493,15 +527,14 @@ illustrates the spikes of a 1D-signal using 0.05 as a spiking threshold in both 
   \includegraphics[width = \columnwidth, height=4cm]{figures/delta_modulated_input.eps}
   \caption{The signal (top) is split into two channels, representing the (upward) downward
   magnitude of the signal in the number of spikes.}
-  %! Correct caption please
   \label{fig:delta_modulated_input}
 \end{figure}
 
 Going back to the simulation, one can see that the input to the network is 
 
-\begin{equation}
+\begin{equation*}
   \textnormal{Input} = \mathbf{F^T}x
-\end{equation}
+\end{equation*}
 where $\mathbf{F}$ is a matrix of size ($N_x$,$N$). By integrating the spikes using
 
 \begin{equation} \label{recon_input}
@@ -518,19 +551,19 @@ for $\lambda$ and $\nu$. Using
 
 the general form of Equation \ref{recon_input} becomes
 
-\begin{equation}
+\begin{equation*}
   \hat{x}_t = (1-\lambda)\hat{x}_{t-1} + \nu Mo_t
-\end{equation}
+\end{equation*}
 
-In order to match the simulation with the DYNAPS, one could simply integrate the spikes and transform
+In order to match the simulation with the DYNAP-SE, one could simply integrate the spikes and transform
 the reconstructed signal to get an approximation of the input using
 
-\begin{equation}
+\begin{equation*}
   \textnormal{Input} = \mathbf{F}^T \hat{x} = \mathbf{F}^T((1-\lambda)\hat{x}_{t-1} + Mo_{t-1})
-\end{equation}
+\end{equation*}
 
-This however does not match the setup on the DYNAPS since the input is first transformed using $M$, then
-integrated and then again transformed using $F$. Contrary, the synapses on the DYNAPS first integrate the
+This however does not match the setup on the DYNAP-SE since the input is first transformed using $M$, then
+integrated and then again transformed using $F$. Contrary, the synapses on the DYNAP-SE first integrate the
 incoming spikes and then transform the integrated value using the weights. We therefore introduce a new variable
 $I_t$ that symbolizes the current at time $t$ of the synapses. $I_t$ performs a simple integration of the input:
 
@@ -565,10 +598,10 @@ We have shown that having real input transformed using a feed-forward matrix $F$
 as integrating a spike train $o_t$ and transforming it using the new matrix $F^TM$. This
 scheme was successfully verified in the simulation. Figure \ref{fig:spiking_vs_continous} compares the reconstruction error over time
 between the continous-input network and the spiking-input network.
-Since the DYNAPS is doing the integration implicitly, we can simply set the feed-forward
+Since the DYNAP-SE is doing the integration implicitly, we can simply set the feed-forward
 connections to a discretized version of $F^TM$ and feed the delta modulated input to the chip. Unfortunately,
 input precision is lost due to the discretization limit imposed by the spikes and more severly by the
-weight resolution on the DYNAPS, which will be covered in another section.
+weight resolution on the DYNAP-SE, which will be covered in another section.
 
 \begin{figure}[!htb]
   \includegraphics[width = \columnwidth, height=4cm]{figures/error_convergence_use_spiking_vs_normal.eps}
@@ -581,34 +614,28 @@ weight resolution on the DYNAPS, which will be covered in another section.
 
 \newpage
 
-\subsubsection{The weights on-chip}
-%-This section explains the limitation of the DYNAPS with the synapses (fan-in 64,fan-out 4k, p.7 sec.4,DYNAPS_paper)
-%-It explains that precision is lost due to the small fan in. It also
-%explains how the weights are rescaled so that the relative size of Omega is kept using min max binning.
-%- It then explains what possible ways are of dealing with too many neurons in fan-in and how to downgrade
-%the neurons and what issues can occur when not doing it right, like for example 700/740 used,
-%750/740 used -> too many -> scale down evenly -> 650/740 used (magnitude lost!)
-%- Describe finding of hyperparameters by doing grid search using different distance
-%measurements (spike train distance, l2 norm of diff between rates, pearson corr coef, but divided by sigma (what if no spikes?))
-%! Need to do grid search again
-As pointed out in section \ref{sec:DYNAPS}, the fan-in of the DYNAPS is relatively small
+\subsubsection{The weights on-chip} \label{sec:weights}
+
+As pointed out in section \ref{sec:DYNAP-SE}, the fan-in of the DYNAP-SE is relatively small
 compared to the fan-out. One neuron can have a maximum of 64 incoming connections.
 This becomes a serious problem considering, that in a fully connected network
 the number of connections scales quadratically with the number of neurons.
 Luckily, the learned matrix exhibits a clear structure, with many values close to zero, so when
-discretized, only a few strong inhibitory or excitatory connections remain. Figure XX
+discretized, only a few strong inhibitory or excitatory connections remain. Figure \ref{fig:spiking_vs_continous}
 compares the continous and discretized weight matrices post learning.
 
 \begin{figure}[!htb]
   \centering
-  \includegraphics[width =10cm, height=4cm]{figures/placeholder.jpeg}
-  \caption{Caption here!}
-  %! Correct caption please
+  \includegraphics[width =10cm, height=4cm]{figures/weights.pdf}
+  \caption{Due to discretization of the matrix, precision is lost. Note that in the right
+  plot, only 5 distinct discrete values are visible, while the right matrix is continous.
+  However, the global structure is preserved and the matrix is symmetric, as the graph
+  should be undirected.}
   \label{fig:spiking_vs_continous}
 \end{figure}
 
 In order to understand the process of rescaling the weights, it is important to know that
-the DYNAPS only has two types of excitatory and inhibitory synapses, respectively.
+the DYNAP-SE only has two types of excitatory and inhibitory synapses, respectively.
 This means that the weights of these two synapses are actually set pre-learning
 and that connections with different weights have to be formed using multiples of these
 synapses.
@@ -633,12 +660,13 @@ we get the weights:
 \begin{equation*}
 \textnormal{weights} = [  0,  -6,   1,  10,  -7,  -7,  10,   3, -10,   0]
 \end{equation*}
+
 Using this approach causes an undesired effect: Whenever a matrix is rescaled to a certain range,
 the information on the weight magnitute, relative to other matrices is lost. A very small matrix at the
 beginning of learning compared to a matrix with more extreme weights would have the same magnitude in
 the rescaled domain. This undesired effect can be easily resolved by providing a point of reference for the
 weight magnitudes in the form of minimum and maximum values in the binning process. These values were obtained
-from a previous test run in the simulation. Since it is just a heuristic and learning using the DYNAPS produces
+from a previous test run in the simulation. Since it is just a heuristic and learning using the DYNAP-SE produces
 different weights, it can happen that weights exceed these limits. In this case they are simply assigned the
 minimum or maximum weight. We also verified that using eye-balled values like $-0.5$ and $0.5$ worked. \\
 
@@ -664,7 +692,7 @@ Being a spike-dependent learning rule, weight-updates happen immediately after a
 While being biologically plausible, this type of update is not achievable in our in-the-loop setup.
 To match this, we would have to chop up the signal to chunks of size $\Delta T$ and iteratively present,
 by $\Delta T$ increasing, parts of the signal and only do an update in the last $\Delta T$, when there 
-was a spike. Since a lot of overhead is created when setting the connections on the DYNAPS, this becomes
+was a spike. Since a lot of overhead is created when setting the connections on the DYNAP-SE, this becomes
 impractical.
 Since the future behaviour of the neurons depend on the current weights, it is clear that accumulating the
 updates and performing the update at the end of the whole signal is not the same as changing the weights
@@ -677,8 +705,8 @@ derivatives are not normalized as can be seen in Figure \ref{fig:batched_update}
 \begin{figure}[!htb]
   \centering
   \includegraphics[width = \columnwidth, height=16cm]{figures/convergence_normal_vs_ub_vs_ub_nn.eps}
-  \caption{Caption here!}
-  %! Correct caption please
+  \caption{The convergence properties using the batched and online versions of the learning rule. The
+  unscaled batched version performs equally well as the online version.}
   \label{fig:batched_update}
 \end{figure}
 
@@ -688,17 +716,17 @@ membrane potentials can only be measured using an oscilloscope. This imposes a p
 the weight updates rely on the neurons voltages.
 To circumvent this limitation, we tried to
 reconstruct the voltage $V_{t}$ based on the transformed input $\mathbf{F^T}x(t)$ and the
-spikes $o^{DYNAPS}(t-1)$. Upon comparison of the reconstructed voltage and the simulation voltage,
+spikes $o^{DYNAP-SE}(t-1)$. Upon comparison of the reconstructed voltage and the simulation voltage,
 we realized that the reconstructed voltage of the population was generally higher than the simulation
 version. The reason for this is simple: In the simulation, there can be only one spike per time, but
-on the DYNAPS, occasionally multiple neurons spiked simultaneously, which we did not take into account.
+on the DYNAP-SE, occasionally multiple neurons spiked simultaneously, which we did not take into account.
 To resolve this mismatch, we computed the reconstructed voltage using
 
 \begin{equation*}
    V(t) = \mathbf{F^T}x(t) + \mathbf{\Omega}o^{aligned}(t)
 \end{equation*}
 where $o^{aligned}_k(t)$ is one if $V_k(t-1)$ was the maximum value above threshold
-and the DYNAPS emitted a spike in a specified time-window $\pm \Delta T$. Note that because
+and the DYNAP-SE emitted a spike in a specified time-window $\pm \Delta T$. Note that because
 the network dynamics off- and on-chip are not perfectly aligned, we considered a small
 time-window, typically of size $\pm 5ms$, instead of checking if there was a spike at exactly
 time $t$.
@@ -736,12 +764,12 @@ The final pseudo code is illustrated in the following section.
     $\mathbf{\Omega}_t \leftarrow \mathbf{\Omega}_{t-1} - \Delta \mathbf{\Omega}$ \;
     $\mathbf{\Omega}_t^{\mathbb{Z}} \leftarrow \textnormal{discretize}(\mathbf{\Omega}_t, \Omega_{\textnormal{min}},\Omega_{\textnormal{max}})$ \;
     $\textnormal{dynaps.set\_recurrent\_connections}(\mathbf{\Omega}_t^{\mathbb{Z}})$ \;
-    $\mathbf{O}^{DYNAPS} \leftarrow \textnormal{dynaps.run}()$ \;
+    $\mathbf{O}^{DYNAP-SE} \leftarrow \textnormal{dynaps.run}()$ \;
 
     \For{$t \leftarrow 1$ \KwTo $T_{\textnormal{signal}}$}{
       $V_t \leftarrow (1-\lambda dt)\cdot V_{t-1} + dt\cdot \mathbf{F^T}\textnormal{Input}_t+\mathbf{\Omega} o^{\textnormal{aligned}}_{t-1}+\epsilon\mathcal{N}(0,1) $ \;
       $(\textnormal{max},k) \leftarrow \textnormal{arg max}(V_t - \textit{thresh}-0.01 \cdot \mathcal{N}(0,1))$ \;
-      \eIf{$\textnormal{max} \geq 0 \land \textnormal{has\_spike}(\mathbf{O}^{\textnormal{DYNAPS}}_{k,\pm \Delta T})$ }{
+      \eIf{$\textnormal{max} \geq 0 \land \textnormal{has\_spike}(\mathbf{O}^{\textnormal{DYNAP-SE}}_{k,\pm \Delta T})$ }{
           $\Delta \Omega_k \leftarrow \Delta \Omega_k + \epsilon_\Omega \cdot (\beta \cdot (V_t + \mu \cdot r_{t-1}) + \Omega_k + \mu \cdot \mathbf{I})$ \;
           $o_t^{aligned} \leftarrow I_k$ \;
           $r_t \leftarrow r_{t-1} + I_k$ \;
@@ -765,14 +793,14 @@ Algorithm \ref{algorithm_chip_in_the_loop} was run for $\textnormal{N}_{\textnor
 with $N = 20$ neurons and $\textnormal{N}_\textnormal{x} = 2$ input signals.
 These signals were converted to $\textnormal{N}_{\textnormal{in}} = 4$ channels, representing the
 spiking input. In the following figures, $\Delta T = \pm 10 \textnormal{ms}$ was used as a time-window.
-To recapitulate, this time-window is used to check, whether the DYNAPS emitted a spike in order
+To recapitulate, this time-window is used to check, whether the DYNAP-SE emitted a spike in order
 to do the update of the neuron with the highest voltage above threshold. We assume that due to
-the mismatch, but the general alignment of the DYNAPS and the simulation, the neuron with
+the mismatch, but the general alignment of the DYNAP-SE and the simulation, the neuron with
 the highest voltage above threshold in the simulation at time $t$ must have
-spiked within a certain $\Delta T$ on the DYNAPS.
+spiked within a certain $\Delta T$ on the DYNAP-SE.
 It should be noted that this scheme can be fooled by simply setting the recurrent weights on-chip
 to zero and activating all the neurons, all the time. This way the condition that a spike occurred
-within a given time-window is always satisfied and the algorithm \ref{algorithm_chip_in_the_loop}
+within a given time-window is always satisfied and algorithm \ref{algorithm_chip_in_the_loop}
 simply becomes a version of the simulation. However, this would render the results useless, as
 the spike train does not sparsify and thus does not produce an (almost) optimal code. \\
 
@@ -782,15 +810,14 @@ the spike train does not sparsify and thus does not produce an (almost) optimal 
   \includegraphics[width = \columnwidth, height=10cm]{figures/DYNAPS_reconstruction.eps}
   \caption{While reducing the reconstruction error, the spike train sparsifies.
   In fact, for this experiment 880 spikes were saved over a period of 1 second, which is more
-  than 3 million in one hour. Assuming that a neuron consumes
-  $2.468 \cdot 10^ J$, we saved $0.781 J$, only for 20 neurons.}
-  %! Correct caption please
+  than 3 million in one hour. A neuron on the DYNAP-SE consumes roughly 1.68$nJ$, so
+  5.04$mJ$ were saved for only 20 neurons.}
   \label{fig:DYNAPS_reconstruction}
 \end{figure}
 
 When comparing Figure \ref{fig:DYNAPS_reconstruction} with Figure \ref{fig:reconstruction},
 especially the scale of the reconstruction error, it
-becomes clear that a lot of precision is lost, due to the simulation-DYNAPS mismatch.
+becomes clear that a lot of precision is lost, due to the simulation-DYNAP-SE mismatch.
 Nevertheless, the results show that this setup successfully learns the optimal recurrent matrix,
 reduces the mean firing rate, reduces the decoding error and balances the network
 (see Figure \ref{fig:DYNAPS_convergence} for convergence behaviour).
@@ -798,29 +825,29 @@ reduces the mean firing rate, reduces the decoding error and balances the networ
 \begin{figure}[!htb]
   \centering
   \includegraphics[width = \columnwidth, height=10cm]{figures/DYNAPS_convergence.eps}
-  \caption{Please reproduce figure with correct size!}
-  %! Correct caption please
+  \caption{Besides the decoding error, all variables show stable convergence. Despite the fact that
+  overall decoding error is reduced, learning is still unstable and has to be improved using
+  an adaptive learning rate (see section \ref{sec:rl}).}
   \label{fig:DYNAPS_convergence}
 \end{figure}
 
 \newpage
 
-\subsection{Reinforcement Learning based step size adaptation}
-When neural agents interact in their environment, the quality of the internal signal representation
-is crucial. Imprecise representations might lead to unsuccessful execution of tasks such as
-reacting to various types of stimuli. It therefore makes sense that the learning of spike-based signal
-representations should be reward guided. In traditional Machine Learning, many approaches for learning
-a learning rate schedule have been proposed. Recently, \cite{xu2019learning} proposed learning the
-schedule based on reward, composed of different features. \citet{xu2019learning} were able to show
-that this learning adaptation scheme outperformed standard adaptation techniques.
-Despite the fact that the proposed scheme even improves performance, reward based learning rate adaptation
-is more biologically plausible. It seems hard to imagine that the brain performs learning rate reduction
-after a given number of steps. Furthermore, reward based adaptation allows to use multiple features
-for the reward and weigh them differently. Additionally, more abstract rewards can be used such as the
-successful identification of a spoken word.
-In the typical Reinforcement Learning framework, our reward is the reconstruction error on some unseen signal
-and the action is a rescaling of the initial learning rate. To avoid hasty corrections based
-on short-sighted rewards, a time horizon is employed, geometrically weighting $n$ rewards from the past.
+\subsection{Reinforcement Learning based step size adaptation} \label{sec:rl}
+When neural agents interact with their environment, the quality of the internal signal representation
+is crucial: Imprecise representations might lead to unsuccessful execution of tasks, which can
+potentially cause harm. It is therefore desirable to adapt the learning mechanism to incorporate
+abstract rewards, besides the actual learning rules. This is particulary helpful in scenarios where
+learning is unstable and a reward can help to adapt the step size taken into the direction of the
+negative gradient. To concretise this idea in the context of Reinforcement Learning (\textbf{RL}), the
+reward would be the negative reconstruction error and the action would be the appropriate rescaling of the
+learning rate. Recently, \cite{xu2019learning} proposed a \textbf{RL}-based approach for learning a
+learning-rate schedule. In this work, the reward is a feature comprising many performance indicators
+such as validation loss and loss-variance. Reward based adaptation is biologically plausible
+and allows to use multiple features,
+enabling the construction of more abstract rewards. To avoid hasty corrections based
+on short-sighted rewards, we employed a time horizon, which geometrically weighs $n$ rewards from the past
+(\cite{Sutton1988}).
 We define the reward to be
 
 \begin{equation*} \label{eq:reward}
@@ -830,45 +857,46 @@ We define the reward to be
 where $\lambda_i$ is the individual reward at time $i$ and $\lambda$ was set to 1.
 After a "burn-in" phase, the initial reward is calculated and taken to be the baseline. Subsequent
 rewards are then rescaled w.r.t. the inital reward. Depending on how unstable the convergence is,
-this rescaled reward can be further rescaled by some exponent $\beta$, yielding extremely small step sizes in case of
-reward.
+this reward can be further rescaled by some exponent $\beta$, yielding extremely small step sizes.
 The complete update of the learning rate thus becomes:
 
 \begin{equation*}
   \alpha_{t} =
     \begin{cases}
-      \alpha_{\textnormal{initial}} \cdot \frac{r(t)}{r(n)} & \text{if $\frac{r(t)}{r(0)} \geq 1$}\\
+      \alpha_{\textnormal{initial}} \cdot \frac{r(t)}{r(n)} & \text{if $\frac{r(t)}{r(n)} \geq 1$}\\
       \alpha_{\textnormal{initial}} \cdot (\frac{r(t)}{r(n)})^{\beta} & \text{else}
     \end{cases}
 \end{equation*}
 
 The effect of this adaptation scheme is made visible in Figure \ref{fig:rewards}, comparing
-rewards over time between no adaptation and the reinforcement learning based adaptation.
+rewards over time between no adaptation and the reinforcement learning based adaptation in a
+noisy learning environment.
 
 \begin{figure}[!htb]
   \centering
-  \includegraphics[width = \columnwidth, height=3cm]{figures/placeholder.jpeg}
-  \caption{Please reproduce figure with correct size!}
-  %! Correct caption please
+  \includegraphics[width = \columnwidth, height=3.0cm]{figures/rl_based_lr_adaptation.eps}
+  \caption{When discretizing the weights, convergence becomes unstable, which can be countered
+  by an adaptive learning rate. While being biologically plausible, the \textbf{RL} scheme provides
+  a flexible learning rate, ensuring more stable convergence. One can see that convergence
+  is more stable after approximately 300 iterations.}
   \label{fig:rewards}
 \end{figure}
 
-When applying this scheme to the DYNAPS setting, learning becomes more stable and as Figure \ref{fig:stable}
+When applying this scheme to the DYNAP-SE setting, learning becomes more stable as Figure \ref{fig:stable}
 shows.
 
 \begin{figure}[!htb]
   \centering
   \includegraphics[width = \columnwidth, height=10cm]{figures/DYNAPS_convergence_stable.eps}
-  \caption{Please reproduce figure with correct size!}
-  %! Correct caption please
+  \caption{Convergence using the \textbf{RL}-based scheme becomes more stable (cf. Figure \ref{fig:DYNAPS_convergence}).}
   \label{fig:stable}
 \end{figure}
 
 \begin{figure}[!htb]
   \centering
   \includegraphics[width = \columnwidth, height=10cm]{figures/DYNAPS_reconstruction_stable.eps}
-  \caption{Please reproduce figure with correct size!}
-  %! Correct caption please
+  \caption{Reconstructed signal using a time-window of $\pm 10ms$ and \textbf{RL}-based lernig rate adaptation with $\beta=10$ and $n=5$.
+  Compared to Figure \ref{fig:DYNAPS_reconstruction}, one can see that the reconstruction is indeed more precise.}
   \label{fig:stable_reconstruction}
 \end{figure}
 
@@ -879,20 +907,14 @@ shows.
 
 % Acknowledgements should go at the end, before appendices and references
 
-\acks{We would like to acknowledge support for this project
-from the National Science Foundation (NSF grant IIS-9988642)
-and the Multidisciplinary Research Program of the Department
-of Defense (MURI N00014-00-1-0637). }
-
-% Manual newpage inserted to improve layout of sample file - not
-% needed in general before appendices/bibliography.
+\acks{I would like to thank my supervisors Sergio Solinas and Giacomo Indiveri for insightful discussions,
+showing me valuable papers and teaching me various new concepts.  
+I would also like to thank Dimitrii Zendrikov for helpful discussions and joint efforts in fixing bugs
+and Christian Machens, who was kind enough to supply me with code
+and great insights during my stay at his lab in Lisbon. Finally, I would like to thank my
+Co-Supervisor Onur Mutlu for making this thesis possible by supervising it.}
 
 \newpage
-
-\appendix
-\section*{Appendix A.}
-%! Show used hyper parameters
-
 
 \vskip 0.2in
 \bibliography{bibliography}

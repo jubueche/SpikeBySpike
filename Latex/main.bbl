@@ -1,16 +1,124 @@
-\begin{thebibliography}{2}
+\begin{thebibliography}{14}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
 
-\bibitem[Chow and Liu(1968)]{chow:68}
-C.~K. Chow and C.~N. Liu.
-\newblock Approximating discrete probability distributions with dependence
-  trees.
-\newblock \emph{IEEE Transactions on Information Theory}, IT-14\penalty0
-  (3):\penalty0 462--467, 1968.
+\bibitem[Bourdoukan et~al.(2012)Bourdoukan, Barrett, Machens, and
+  Den\`{e}ve]{Bourdoukan:2012:LOS:2999325.2999390}
+Ralph Bourdoukan, David G.~T. Barrett, Christian~K. Machens, and Sophie
+  Den\`{e}ve.
+\newblock Learning optimal spike-based representations.
+\newblock In \emph{Proceedings of the 25th International Conference on Neural
+  Information Processing Systems - Volume 2}, NIPS'12, pages 2285--2293, USA,
+  2012. Curran Associates Inc.
+\newblock URL \url{http://dl.acm.org/citation.cfm?id=2999325.2999390}.
+
+\bibitem[Boybat et~al.(2018)Boybat, Le~Gallo, Nandakumar, Moraitis, Parnell,
+  Tuma, Rajendran, Leblebici, Sebastian, and Eleftheriou]{Boybat2018}
+Irem Boybat, Manuel Le~Gallo, S.~R. Nandakumar, Timoleon Moraitis, Thomas
+  Parnell, Tomas Tuma, Bipin Rajendran, Yusuf Leblebici, Abu Sebastian, and
+  Evangelos Eleftheriou.
+\newblock Neuromorphic computing with multi-memristive synapses.
+\newblock \emph{Nature Communications}, 9\penalty0 (1):\penalty0 2514, 2018.
+\newblock ISSN 2041-1723.
+\newblock \doi{10.1038/s41467-018-04933-y}.
+\newblock URL \url{https://doi.org/10.1038/s41467-018-04933-y}.
+
+\bibitem[Brendel et~al.(2017)Brendel, Bourdoukan, Vertechi, Machens, and
+  Denéve]{wiel2017learning}
+Wieland Brendel, Ralph Bourdoukan, Pietro Vertechi, Christian~K. Machens, and
+  Sophie Denéve.
+\newblock Learning to represent signals spike by spike, 2017.
+
+\bibitem[Cassidy et~al.(2016)Cassidy, Sawada, Merolla, Arthur, Alvarez-Icaza,
+  Akopyan, Jackson, and Modha]{Cassidy2016TrueNorthAH}
+Andrew~S. Cassidy, Jun Sawada, Paul Merolla, John~V. Arthur, Rodrigo
+  Alvarez-Icaza, Filipp Akopyan, Bryan~L. Jackson, and Dharmendra~S. Modha.
+\newblock Truenorth: A high-performance, low-power neurosynaptic processor for
+  multi-sensory perception, action, and cognition.
+\newblock 2016.
+
+\bibitem[Corradi and Indiveri(2015)]{corradi}
+F.~Corradi and G.~Indiveri.
+\newblock A neuromorphic event-based neural recording system for smart
+  brain-machine-interfaces.
+\newblock \emph{IEEE Transactions on Biomedical Circuits and Systems},
+  9\penalty0 (5):\penalty0 699--709, Oct 2015.
+\newblock ISSN 1940-9990.
+\newblock \doi{10.1109/TBCAS.2015.2479256}.
+
+\bibitem[Dale(1935)]{Dale1935}
+H.~Dale.
+\newblock Pharmacology and nerve-endings (walter ernest dixon memorial
+  lecture): (section of therapeutics and pharmacology).
+\newblock \emph{Proceedings of the Royal Society of Medicine}, 28\penalty0
+  (3):\penalty0 319--332, Jan 1935.
+\newblock ISSN 0035-9157.
+\newblock URL \url{https://www.ncbi.nlm.nih.gov/pubmed/19990108}.
+\newblock 19990108[pmid].
+
+\bibitem[Deiss et~al.(1999)Deiss, Douglas, and
+  Whatley]{Deiss:1999:PCI:296533.296540}
+Stephen~R. Deiss, Rodney~J. Douglas, and Adrian~M. Whatley.
+\newblock Pulsed neural networks.
+\newblock chapter A Pulse-coded Communications Infrastructure for Neuromorphic
+  Systems, pages 157--178. MIT Press, Cambridge, MA, USA, 1999.
+\newblock ISBN 0-626-13350-4.
+\newblock URL \url{http://dl.acm.org/citation.cfm?id=296533.296540}.
+
+\bibitem[Lapicque(1907)]{Lapicque}
+Louis Lapicque.
+\newblock \emph{Recherches quantitatives sur l'excitation électrique des nerfs
+  traitée comme une polarisation}.
+\newblock 1907.
+\newblock URL
+  \url{https://fr.wikisource.org/wiki/Recherches_quantitatives_sur_l%27excitation_%C3%A9lectrique_des_nerfs_trait%C3%A9e_comme_une_polarisation}.
+
+\bibitem[Maass et~al.(2002)Maass, Natschlager, and
+  Markram]{Maass:2002:RCW:639717.639718}
+Wolfgang Maass, Thomas Natschlager, and Henry Markram.
+\newblock Real-time computing without stable states: A new framework for neural
+  computation based on perturbations.
+\newblock \emph{Neural Comput.}, 14\penalty0 (11):\penalty0 2531--2560,
+  November 2002.
+\newblock ISSN 0899-7667.
+\newblock \doi{10.1162/089976602760407955}.
+\newblock URL \url{http://dx.doi.org/10.1162/089976602760407955}.
+
+\bibitem[Moradi et~al.(2017)Moradi, Ning, Stefanini, and
+  Indiveri]{DBLP:journals/corr/abs-1708-04198}
+Saber Moradi, Qiao Ning, Fabio Stefanini, and Giacomo Indiveri.
+\newblock A scalable multi-core architecture with heterogeneous memory
+  structures for dynamic neuromorphic asynchronous processors (dynaps).
+\newblock \emph{CoRR}, abs/1708.04198, 2017.
+\newblock URL \url{http://arxiv.org/abs/1708.04198}.
+
+\bibitem[Sutton(1988)]{Sutton1988}
+Richard~S. Sutton.
+\newblock Learning to predict by the methods of temporal differences.
+\newblock \emph{Machine Learning}, 3\penalty0 (1):\penalty0 9--44, Aug 1988.
+\newblock ISSN 1573-0565.
+\newblock \doi{10.1007/BF00115009}.
+\newblock URL \url{https://doi.org/10.1007/BF00115009}.
+
+\bibitem[Tibshirani(1996)]{Tibshirani1996}
+Robert Tibshirani.
+\newblock Regression shrinkage and selection via the lasso.
+\newblock 58\penalty0 (1):\penalty0 267--288, 1996.
+\newblock ISSN 00359246.
+\newblock URL \url{www.jstor.org/stable/2346178}.
+
+\bibitem[Vincent et~al.(2008)Vincent, Larochelle, Bengio, and
+  Manzagol]{Vincent:2008:ECR:1390156.1390294}
+Pascal Vincent, Hugo Larochelle, Yoshua Bengio, and Pierre-Antoine Manzagol.
+\newblock Extracting and composing robust features with denoising autoencoders.
+\newblock In \emph{Proceedings of the 25th International Conference on Machine
+  Learning}, ICML '08, pages 1096--1103, New York, NY, USA, 2008. ACM.
+\newblock ISBN 978-1-60558-205-4.
+\newblock \doi{10.1145/1390156.1390294}.
+\newblock URL \url{http://doi.acm.org/10.1145/1390156.1390294}.
 
 \bibitem[Xu et~al.(2019)Xu, Dai, Kemp, and Metz]{xu2019learning}
 Zhen Xu, Andrew~M. Dai, Jonas Kemp, and Luke Metz.

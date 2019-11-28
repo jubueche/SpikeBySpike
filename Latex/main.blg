@@ -3,44 +3,51 @@ Capacity: max_strings=100000, hash_size=100000, hash_prime=85009
 The top-level auxiliary file: main.aux
 The style file: plainnat.bst
 Database file #1: bibliography.bib
-You've used 2 entries,
+Warning--I'm ignoring Dale1935's extra "note" field
+--line 104 of file bibliography.bib
+Warning--empty booktitle in Cassidy2016TrueNorthAH
+Warning--empty booktitle in Deiss:1999:PCI:296533.296540
+Warning--empty publisher in Lapicque
+Warning--empty journal in Tibshirani1996
+You've used 14 entries,
             2773 wiz_defined-function locations,
-            603 strings with 5104 characters,
-and the built_in function-call counts, 937 in all, are:
-= -- 78
-> -- 60
-< -- 1
-+ -- 20
-- -- 18
-* -- 77
-:= -- 147
-add.period$ -- 5
-call.type$ -- 2
-change.case$ -- 12
-chr.to.int$ -- 2
-cite$ -- 4
-duplicate$ -- 36
-empty$ -- 74
-format.name$ -- 22
-if$ -- 189
+            721 strings with 8741 characters,
+and the built_in function-call counts, 7766 in all, are:
+= -- 711
+> -- 493
+< -- 9
++ -- 167
+- -- 153
+* -- 671
+:= -- 1203
+add.period$ -- 67
+call.type$ -- 14
+change.case$ -- 92
+chr.to.int$ -- 14
+cite$ -- 32
+duplicate$ -- 321
+empty$ -- 571
+format.name$ -- 169
+if$ -- 1634
 int.to.chr$ -- 1
 int.to.str$ -- 1
-missing$ -- 1
-newline$ -- 17
-num.names$ -- 8
-pop$ -- 26
+missing$ -- 13
+newline$ -- 100
+num.names$ -- 56
+pop$ -- 174
 preamble$ -- 1
-purify$ -- 10
+purify$ -- 79
 quote$ -- 0
-skip$ -- 34
+skip$ -- 261
 stack$ -- 0
-substring$ -- 29
-swap$ -- 2
-text.length$ -- 0
+substring$ -- 262
+swap$ -- 48
+text.length$ -- 4
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 22
-warning$ -- 0
-while$ -- 8
+type$ -- 149
+warning$ -- 4
+while$ -- 59
 width$ -- 0
-write$ -- 30
+write$ -- 233
+(There were 5 warnings)
